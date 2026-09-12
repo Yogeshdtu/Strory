@@ -2,17 +2,20 @@
 // ============================================================
 // Number parsing -- std::from_chars vs std::stoi vs atoi vs stringstream
 // ============================================================
-//   BENCHMARK -> -O2 ZAROORI.
+//   BENCHMARK -> -O2 ZAROORI (-O0 pe timing ka koi matlab nahi).
 //   g++ -std=c++20 -O2 05_fast_parsing.cpp -o fp && ./fp
 // ============================================================
 // std::from_chars (C++17):
-//   - NO allocation, NO locale, NO exceptions
-//   - strict: "42abc" -> parses 42, tells you it stopped at 'a'
-//   - fastest standard integer/float parser
-// vs:
-//   std::stoi     -> throws, builds a std::string sometimes, locale-aware
-//   std::atoi     -> no error reporting, UB on overflow
-//   std::stringstream -> allocates, locale, VERY slow
+//   - allocation NAHI, locale NAHI, exceptions NAHI
+//   - strict: "42abc" -> 42 parse karta hai, aur batata hai ki 'a' pe ruka
+//   - standard ka sabse tez integer/float parser
+// Baaki:
+//   std::stoi         -> galti pe throw, kabhi-kabhi std::string banata hai, locale-aware
+//   std::atoi         -> koi error report nahi, overflow pe UB
+//   std::stringstream -> allocate karta hai, locale, BAHUT slow
+//
+// Naape hue ratios (GCC 15.1 aur 16.2 dono pe lagbhag same): stoi ~8x, atoi ~3-4x,
+// stringstream ~30x -- from_chars ke muqable. Lesson 06 mein tables.
 // ============================================================
 
 #include <charconv>
@@ -27,20 +30,22 @@
 #include <vector>
 
 int main() {
-    // test data: 1 lakh number strings
+    // Test data: 1 lakh number strings -- timing se PEHLE bana li, taaki unka banana
+    // benchmark mein na gine (sirf parsing naapni hai -- Rule 2).
     std::vector<std::string> data;
     data.reserve(100'000);
     for (int i = 0; i < 100'000; ++i)
         data.push_back(std::to_string((i * 2654435761u) % 1'000'000));
 
-    constexpr int REPS = 60;
+    constexpr int REPS = 60;                // kai baar chalao, per-pass average
     auto ms = [](auto a, auto b) {
         return std::chrono::duration<double, std::milli>(b - a).count();
     };
 
-    long long sumFC = 0, sumStoi = 0, sumAtoi = 0, sumSS = 0;   // ek pass ka sum
+    long long sumFC = 0, sumStoi = 0, sumAtoi = 0, sumSS = 0;   // ek pass ka sum -- sab same aana chahiye
 
     // ---- from_chars ----
+    // Seedha chars pe digit loop: na heap, na locale, galti pe return value (errc).
     auto t0 = std::chrono::steady_clock::now();
     for (int r = 0; r < REPS; ++r) {
         long long s = 0;
@@ -54,6 +59,7 @@ int main() {
     auto t1 = std::chrono::steady_clock::now();
 
     // ---- stoi ----
+    // Andar strtol + errno check + galti pe exception ka raasta -- har call pe zyada kaam.
     for (int r = 0; r < REPS; ++r) {
         long long s = 0;
         for (const std::string& str : data) s += std::stoi(str);
@@ -62,6 +68,7 @@ int main() {
     auto t2 = std::chrono::steady_clock::now();
 
     // ---- atoi ----
+    // Tez-ish, par galti ko 0 bana deta hai (atoi("0") se pehchaan nahi) aur overflow pe UB.
     for (int r = 0; r < REPS; ++r) {
         long long s = 0;
         for (const std::string& str : data) s += std::atoi(str.c_str());
@@ -70,6 +77,7 @@ int main() {
     auto t3 = std::chrono::steady_clock::now();
 
     // ---- stringstream ----  (kam reps -- bahut slow hai)
+    // Har string ke liye naya stream object: allocation + locale facet (virtual calls).
     constexpr int SS_REPS = 6;
     for (int r = 0; r < SS_REPS; ++r) {
         long long s = 0;
@@ -98,10 +106,12 @@ int main() {
               << std::setprecision(1) << (ssMs / fcMs) << "x)  <- allocates + locale\n"
               << std::setprecision(3);
 
+    // Checksum match = chaaron ne same numbers parse kiye (tez hona tabhi maayne rakhta hai jab sahi ho).
     const bool match = (sumFC == sumStoi) && (sumFC == sumAtoi) && (sumFC == sumSS);
     std::cout << "  (per-pass checksums " << (match ? "match" : "DIFFER") << ")\n";
 
     // ---- from_chars: strict + error-reporting demo ----
+    // ptr batata hai kahan ruka; ec batata hai kya galti hui. Galti pe v ko haath nahi lagta.
     std::cout << "\n===== from_chars strictness =====\n";
     for (std::string_view s : {"42", "42abc", "abc", "  7", "999999999999999999"}) {
         int v = 0;

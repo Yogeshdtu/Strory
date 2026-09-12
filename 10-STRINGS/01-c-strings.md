@@ -20,7 +20,7 @@ comparison, sab aapki zimmedaari.
 Ek `char` array jismein **pehla `'\0'` (value 0) string ka end mark karta hai.**
 
 ```cpp
-char s[] = "hi";          // {'h', 'i', '\0'}  -- size 3, NOT 2!
+char s[] = "hi";          // {'h', 'i', '\0'}  -- size 3, 2 NAHI!
 ```
 
 ```
@@ -31,46 +31,49 @@ char s[] = "hi";          // {'h', 'i', '\0'}  -- size 3, NOT 2!
    'h'=104  'i'=105  '\0'=0
 ```
 
-String literal `"hi"` ke saath ek **hidden `'\0'`** aata hai. `char s[3]`.
+String literal `"hi"` ke saath ek **chhupa hua `'\0'`** aata hai. Isliye `char s[3]`.
+
+Analogy: C-string ek train hai jiske aakhir mein ek laal "END" dibba laga hai. Train kitni
+lambi hai, yeh kahin likha nahi — ginne ke liye shuru se END dibbe tak chalna padta hai.
 
 ### `strlen` — `'\0'` tak scan
 
 ```cpp
 #include <cstring>
 std::strlen("hello")      // 5  -- '\0' count NAHI hota
-std::strlen(s)            // scans byte-by-byte till '\0'  -> O(n)
+std::strlen(s)            // '\0' milne tak byte-by-byte scan  -> O(n)
 ```
 
-⚠️ `strlen` **har call pe poora scan** karta hai. Loop condition mein `strlen`
-→ O(n²). Cache it.
+⚠️ `strlen` **har call pe poora scan** karta hai. Loop condition mein `strlen` → O(n²).
+Length ek baar nikaal ke variable mein rakh lo.
 
 ---
 
 ## `<cstring>` functions — sab `'\0'` pe rukte hain
 
 ```cpp
-std::strlen(s)                 // length (till '\0')
-std::strcpy(dst, src)          // copy including '\0'  -- ⚠️ NO size check
-std::strncpy(dst, src, n)      // copy at most n  -- ⚠️ may not add '\0'
+std::strlen(s)                 // length ('\0' tak)
+std::strcpy(dst, src)          // '\0' samet copy  -- ⚠️ size check NAHI
+std::strncpy(dst, src, n)      // zyada se zyada n copy  -- ⚠️ '\0' shayad na lage
 std::strcmp(a, b)              // <0 / 0 / >0  (content compare)
-std::strncmp(a, b, n)          // first n chars
-std::strcat(dst, src)          // append  -- ⚠️ NO size check
-std::strchr(s, 'x')            // pointer to first 'x' (or nullptr)
-std::strstr(s, "sub")          // substring search
+std::strncmp(a, b, n)          // pehle n chars
+std::strcat(dst, src)          // aakhir mein jodo  -- ⚠️ size check NAHI
+std::strchr(s, 'x')            // pehle 'x' ka pointer (ya nullptr)
+std::strstr(s, "sub")          // substring dhoondho
 ```
 
 ---
 
-## ⚠️ Buffer overflow — C's #1 vulnerability class
+## ⚠️ Buffer overflow — C ki #1 vulnerability class
 
 ```cpp
 char small[8];
-std::strcpy(small, "this string is way too long");   // ⚠️ writes 28 bytes into 8
+std::strcpy(small, "this string is way too long");   // ⚠️ 8 ki jagah 28 bytes likhta hai
 ```
 
-`strcpy` **destination ka size nahi jaanta** — jitne bytes `src` mein hain
-(till `'\0'`) utne likhta hai. Overflow → adjacent stack corrupt → crash, ya
-silently wrong, ya **exploitable** (return-address overwrite).
+`strcpy` **destination ka size nahi jaanta** — jitne bytes `src` mein hain (`'\0'` tak) utne
+likhta hai. Overflow → bagal ka stack corrupt → crash, ya chupchaap galat, ya **exploitable**
+(return address overwrite).
 
 ### "Safer" — par abhi bhi manual
 
@@ -80,13 +83,13 @@ std::strncpy(dst, src, sizeof(dst) - 1);
 dst[sizeof(dst) - 1] = '\0';                 // ⚠️ strncpy '\0' guarantee nahi karta -- khud lagao
 ```
 
-`strncpy` bhi trap-heavy: src poora bhar de to `'\0'` nahi lagta; src chhota ho
-to baaki `'\0'` se pad karta hai (waste). BSD ka `strlcpy` behtar hai (non-
-standard). **Rule: `std::string` / `std::string_view` use karo.**
+`strncpy` bhi traps se bhara hai: src poora buffer bhar de to `'\0'` nahi lagta; src chhota ho
+to baaki jagah `'\0'` se bharta hai (bekaar kaam). BSD ka `strlcpy` behtar hai (par standard
+nahi). **Rule: `std::string` / `std::string_view` use karo.**
 
 ---
 
-## ⚠️ Comparison — `==` compares pointers
+## ⚠️ Comparison — `==` pointers compare karta hai
 
 ```cpp
 const char* a = "apple";
@@ -97,59 +100,60 @@ if (a == b) { }                      // ⚠️ POINTERS compare -- kabhi true (l
 if (std::strcmp(a, b) == 0) { }      // ✅ content
 ```
 
-(Folder 05 file 03 se.) `std::string` mein `==` content compare karta hai —
-isli ye woh better.
+(Folder 05 file 03 se.) `std::string` mein `==` content compare karta hai — isliye woh behtar hai.
 
 ---
 
-## ⚠️ Missing terminator = UB
+## ⚠️ Terminator gayab = UB
 
 ```cpp
-char bad[3] = {'a', 'b', 'c'};       // NO '\0' -- yeh C-string NAHI hai
-std::strlen(bad);                     // ⚠️ scans past the array -> OOB read -> UB
-std::cout << bad;                     // ⚠️ same
+char bad[3] = {'a', 'b', 'c'};       // '\0' NAHI -- yeh C-string NAHI hai
+std::strlen(bad);                     // ⚠️ array ke bahar scan -> OOB read -> UB
+std::cout << bad;                     // ⚠️ wahi baat
 ```
 
-Har C-string mein `'\0'` **hona hi chahiye**. `char x[N] = "..."` isse handle
-karta hai (jab tak string `N` mein fit ho with terminator).
+Har C-string mein `'\0'` **hona hi chahiye**. `char x[N] = "..."` yeh apne aap sambhaal leta hai
+(jab tak string terminator samet `N` mein fit ho).
 
 ---
 
 ## `char*` vs `char[]` vs string literal
 
 ```cpp
-char        a[] = "hi";     // MUTABLE copy of the literal, on the stack. a[0] = 'H' OK.
-const char* p   = "hi";     // p points to the LITERAL (read-only static). p[0] = 'H' -> UB!
-char*       q   = "hi";     // ⚠️ deprecated/ill-formed in C++ -- literal is const
+char        a[] = "hi";     // literal ki BADALNE-LAYAK copy, stack pe. a[0] = 'H' theek hai.
+const char* p   = "hi";     // p seedha LITERAL pe point karta hai (read-only static). p[0] = 'H' -> compile error (const)
+char*       q   = "hi";     // ⚠️ C++11 se ill-formed -- literal const hai. q[0] = 'H' -> UB (compile ho jaaye to bhi)
 ```
 
-String literals are `const char[N]` in **read-only** memory. `const char*` for
-pointing at them. `char[]` if you need a mutable buffer.
+String literals ka type `const char[N]` hai aur woh **read-only** memory mein rehte hain. Unpe
+point karne ke liye `const char*`; badalne layak buffer chahiye to `char[]`.
+
+⚠️ Dhyaan: `char* q = "hi";` standard ke hisaab se galat hai, par **GCC 16.2 default pe sirf
+warning deta hai aur compile kar deta hai**: `ISO C++ forbids converting a string constant to
+'char*' [-Wwrite-strings]`. Error chahiye to `-pedantic-errors` lagao (chala ke dekha). "Compile
+ho gaya" ka matlab "sahi hai" nahi.
 
 ---
 
 ## Andar kya hota hai
 
-- `char s[] = "hello"` → 6 bytes on the stack, `memcpy`'d from the literal.
-- `const char* p = "hello"` → `p` (8 bytes) holds the address of the literal in
-  `.rodata`.
-- `strcpy` → `rep movsb`-style byte copy till `'\0'`. No bounds.
-- `strlen` → scan for zero byte (`repne scasb` or SIMD `pcmpeqb`).
-- No length stored → every operation re-scans.
+- `char s[] = "hello"` → stack pe 6 bytes, literal se `memcpy` karke.
+- `const char* p = "hello"` → `p` (8 bytes) mein `.rodata` mein pade literal ka address.
+- `strcpy` → `'\0'` tak byte-by-byte copy (`rep movsb` jaisa). Koi bounds nahi.
+- `strlen` → zero byte ki talaash (`repne scasb`, ya SIMD `pcmpeqb` se 16/32 bytes ek saath).
+- Length kahin store nahi hoti → har operation dobara scan karta hai.
 
-> **HFT relevance:** C-strings appear at C-API and wire boundaries (`char[]`
-> fields in packed structs, fixed-width symbol fields). HFT code uses
-> `std::string_view` over those bytes for parsing (no copy, no scan — length is
-> known from the format), and fixed `std::array<char, N>` for outbound fixed-
-> width fields. Raw `strcpy`/`strcat` are banned (overflow). `strlen` on hot
-> paths is avoided — the length is already known from the protocol.
+> **HFT relevance:** C-strings C-API aur wire ki boundary pe dikhte hain (packed structs mein
+> `char[]` fields, fixed-width symbol fields). HFT code parsing ke liye un bytes pe
+> `std::string_view` rakhta hai (na copy, na scan — length format se hi pata hai), aur bahar
+> jaane wale fixed-width fields ke liye `std::array<char, N>`. Raw `strcpy`/`strcat` ban hain
+> (overflow). Hot path pe `strlen` se bachte hain — length protocol se pehle hi pata hoti hai.
 
 ---
 
 ## Hands-on
 
-`examples/01_c_strings.cpp` — layout, `strlen`, overflow risk, `strcmp`, missing
-terminator:
+`examples/01_c_strings.cpp` — layout, `strlen`, overflow ka khatra, `strcmp`, gayab terminator:
 
 ```bash
 ./build.ps1 10-STRINGS/examples/01_c_strings.cpp
@@ -162,30 +166,32 @@ terminator:
 ### Trap 1 — `sizeof` vs `strlen`
 ```cpp
 char s[] = "hi";
-sizeof(s)      // 3 (array, includes '\0')
+sizeof(s)      // 3 (array, '\0' samet)
 std::strlen(s) // 2
 ```
 
 ### Trap 2 — `char s[5] = "hello"`
 ```cpp
-char s[5] = "hello";   // ⚠️ 5 chars, no room for '\0'. char s[6] or char s[]
+char s[5] = "hello";   // ❌ C++ mein compile error: 'initializer-string for char [5] is too long'
 ```
+`"hello"` ko 6 bytes chahiye. (C language mein yahi line chupchaap bina `'\0'` ke compile hoti hai
+— C code padhte waqt yaad rakhna.) `char s[6]` ya `char s[]` likho.
 
-### Trap 3 — modifying a string literal
+### Trap 3 — string literal ko badalna
 ```cpp
-char* p = "hi";  p[0] = 'H';   // ⚠️ UB -- literal is read-only. Use char a[] = "hi"
+char* p = "hi";  p[0] = 'H';   // ⚠️ UB -- literal read-only hai (aur GCC sirf warning deta hai). char a[] = "hi" lo
 ```
 
-### Trap 4 — `strlen` in a loop condition
+### Trap 4 — loop condition mein `strlen`
 ```cpp
 for (std::size_t i = 0; i < std::strlen(s); ++i)   // ⚠️ O(n^2)
 const std::size_t n = std::strlen(s);
 for (std::size_t i = 0; i < n; ++i)                 // ✅
 ```
 
-### Trap 5 — `strncpy` and assuming `'\0'`
+### Trap 5 — `strncpy` ke baad `'\0'` maan lena
 ```cpp
-strncpy(dst, src, n);   // ⚠️ dst may not be null-terminated. dst[n-1] = '\0'
+strncpy(dst, src, n);   // ⚠️ dst shayad null-terminated na ho. dst[n-1] = '\0' khud lagao
 ```
 
 ---
@@ -194,34 +200,40 @@ strncpy(dst, src, n);   // ⚠️ dst may not be null-terminated. dst[n-1] = '\0
 
 | ❌ Galat | ✅ Sahi |
 |---|---|
-| "`\"hi\"` is 2 bytes" | 3 — hidden `'\0'` |
-| "`strcpy` is safe if dst is big enough" | It never checks — you must |
-| "`a == b` compares C-string contents" | Pointers — `strcmp` |
-| "`char x[3] = {'a','b','c'}` is a string" | No `'\0'` — not a C-string |
-| "`char* p = \"lit\"; p[0]='X'`" | UB — literal is const |
+| "`\"hi\"` 2 bytes ka hai" | 3 — chhupa hua `'\0'` |
+| "dst bada ho to `strcpy` safe hai" | Woh kabhi check nahi karta — aapko karna padega |
+| "`a == b` C-string ka content compare karta hai" | Pointers — `strcmp` lo |
+| "`char x[3] = {'a','b','c'}` ek string hai" | `'\0'` nahi — C-string nahi hai |
+| "`char* p = \"lit\";` compile ho gaya to theek hai" | C++11 se ill-formed; GCC sirf warning deta hai. `p[0]='X'` UB |
 
 ---
 
 ## Exercises
 
-1. **Layout:** `char s[] = "abc";` — `sizeof(s)`, `strlen(s)`, each `s[i]` as
-   `int`. Where's the `0`?
+1. **Layout:** `char s[] = "abc";` — `sizeof(s)`, `strlen(s)`, aur har `s[i]` ko `int` ki tarah
+   print karo. `0` kahan hai?
 
-2. **Overflow (careful):** `char buf[4]; strcpy(buf, "hello");` — compile with
-   `-O2` and `-fstack-protector-all`, run. Crash / "stack smashing detected"?
+2. **Overflow (dhyaan se):** `char buf[4]; strcpy(buf, "hello");` — `-O2` aur
+   `-fstack-protector-all` se compile karke chalao. Crash / "stack smashing detected" aaya?
 
-3. **strcmp:** `strcmp("apple", "apple")`, `strcmp("apple", "apply")`,
-   `strcmp("app", "apple")` — signs?
+3. **strcmp:** `strcmp("apple", "apple")`, `strcmp("apple", "apply")`, `strcmp("app", "apple")` —
+   har ek ka sign?
 
-4. **Manual strlen:** write `std::size_t myStrlen(const char* s)` (loop till
-   `'\0'`). Test on `""`, `"a"`, `"hello"`.
+4. **Apna strlen:** `std::size_t myStrlen(const char* s)` likho (`'\0'` tak loop). `""`, `"a"`,
+   `"hello"` pe test karo.
 
-5. **Safe copy:** `bool safeCopy(char* dst, std::size_t dstCap, const char* src)`
-   — copy only if it fits (incl. `'\0'`), return success. Test with fitting /
-   overflowing src.
+5. **Safe copy:** `bool safeCopy(char* dst, std::size_t dstCap, const char* src)` — sirf tab copy
+   karo jab (`'\0'` samet) fit ho, success return karo. Fit hone wale aur overflow wale `src` se
+   test karo.
 
-6. **Literal mutation:** `const char* p = "hi";` vs `char a[] = "hi";` — try
-   `p[0] = 'H'` and `a[0] = 'H'`. Which is UB?
+6. **Literal mutation:** `const char* p = "hi";` vs `char a[] = "hi";` — `p[0] = 'H'` aur
+   `a[0] = 'H'` try karo. Kaunsa UB hai? Aur `char* q = "hi";` pe GCC kya kehta hai?
+   <details><summary>Answer</summary>
+
+   `const char* p` pe `p[0] = 'H'` compile hi nahi hoga (const). `a[0] = 'H'` bilkul theek — `a`
+   apni copy hai. `char* q = "hi"; q[0] = 'H';` — GCC 16.2 sirf `-Wwrite-strings` warning deta hai,
+   compile ho jaata hai, aur chalane pe **UB** (read-only memory mein likhna — aksar crash).
+   </details>
 
 ---
 

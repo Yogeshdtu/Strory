@@ -138,7 +138,9 @@ int*  f1() { int x = 1; return &x; }        // ⚠️ dangling pointer
 int&  f2() { int x = 1; return x;  }        // ⚠️ dangling reference
 std::string_view f3() { std::string s = "hi"; return s; }   // ⚠️ view into dead string
 ```
-`-Wreturn-local-addr`, `-Wdangling`. Fix: **by value return** (RVO se free).
+Pointer/reference return karne ko GCC `-Wreturn-local-addr` pakadta hai — par upar wale `string_view` case
+pe GCC 16.2 `-Wall -Wextra` ne **koi warning nahi di** (chala ke dekha). Clang ke `-Wdangling` /
+`-Wreturn-stack-address` kuch aur pakadte hain. Warning pe bharosa mat karo. Fix: **by value return** (RVO se free).
 
 ### Reference member to temporary
 ```cpp

@@ -21,28 +21,30 @@ liye best type. Par dangling ka dhyaan rakhna zaroori hai.
 std::string_view sv;              // { const char* ; size_t }  -- 16 bytes
 ```
 
-Copy karna sasta (ptr + int). Destroy karne pe underlying chars ko **kuch nahi**
-hota (own nahi karta).
+Copy karna sasta (ptr + ek number). Destroy karne pe asli chars ko **kuch nahi** hota (maalik nahi hai).
+
+Analogy: `string_view` ek **highlighter** hai — kitaab ke ek hisse ko mark karta hai, par kitaab uski
+nahi. Kitaab (asli string) phenk di, to highlighter kisi khaali jagah ko mark kar raha hoga.
 
 ---
 
 ## Banana — kisi bhi char source se
 
 ```cpp
-std::string_view a = "literal";              // from string literal
+std::string_view a = "literal";              // string literal se
 std::string s = "hello";
-std::string_view b = s;                      // from std::string (no copy)
+std::string_view b = s;                      // std::string se (copy nahi)
 std::string_view c(s.data() + 1, 3);         // ptr + len -> "ell"
-std::string_view d = s.substr(...);           // ⚠️ std::string::substr returns std::string (copy)!
-                                              //    use std::string_view(s).substr(...) for a view
+std::string_view d = s.substr(...);           // ⚠️ std::string::substr std::string lautata hai (copy)!
+                                              //    view chahiye to std::string_view(s).substr(...)
 const char* p = "world";
-std::string_view e(p);                       // from char* (calls strlen)
-std::string_view f(p, 3);                    // "wor"  (no strlen)
+std::string_view e(p);                       // char* se (andar strlen chalta hai)
+std::string_view f(p, 3);                    // "wor"  (strlen nahi)
 ```
 
 ---
 
-## Function parameter — the point
+## Function parameter — asli kaam
 
 ```cpp
 std::size_t countChar(std::string_view s, char target) {
@@ -51,135 +53,134 @@ std::size_t countChar(std::string_view s, char target) {
     return n;
 }
 
-countChar("literal", 'l');           // no temp std::string
-countChar(myString, 'l');            // no copy
-countChar(myString.substr(0, 5), 'l'); // (this substr DOES copy -- see below)
+countChar("literal", 'l');           // koi temp std::string nahi
+countChar(myString, 'l');            // copy nahi
+countChar(myString.substr(0, 5), 'l'); // (yeh substr copy KARTA hai -- neeche dekho)
 ```
 
 ```cpp
-// ❌ old: forces a std::string temp for a literal / char*
+// ❌ purana: literal / char* ke liye zabardasti std::string temp
 void log(const std::string& msg);
-log("hello");                        // "hello" -> temporary std::string (allocation if > SSO)
+log("hello");                        // "hello" -> temporary std::string (SSO se bada ho to allocation)
 
-// ✅ new
+// ✅ naya
 void log(std::string_view msg);
-log("hello");                        // just a { ptr, len } -- no temp, no allocation
+log("hello");                        // bas { ptr, len } -- na temp, na allocation
 ```
 
-**Rule: read-only string parameter → `std::string_view`.** (Take `const
-std::string&` only if you specifically need `.c_str()` / null-termination inside.)
+**Rule: read-only string parameter → `std::string_view`.** (`const std::string&` tabhi lo jab andar
+khaas taur pe `.c_str()` / null-termination chahiye.)
 
 ---
 
-## API — like `std::string`, minus mutation & allocation
+## API — `std::string` jaisa, bas badlaav aur allocation ke bina
 
 ```cpp
 sv.size()   sv.empty()   sv[i]   sv.front()   sv.back()   sv.data()
-sv.find("x")   sv.rfind(...)   sv.starts_with(...)   sv.ends_with(...)   sv.contains(...)
-sv.substr(pos, len)              // ✅ returns another string_view (no allocation!)
-sv.remove_prefix(n)              // shrink from the front (just moves ptr, bumps len down)
-sv.remove_suffix(n)              // shrink from the back
+sv.find("x")   sv.rfind(...)   sv.starts_with(...)   sv.ends_with(...)   sv.contains(...)  // contains: C++23
+sv.substr(pos, len)              // ✅ ek aur string_view lautata hai (allocation nahi!)
+sv.remove_prefix(n)              // aage se chhota karo (ptr aage, len kam)
+sv.remove_suffix(n)              // peeche se chhota karo
 sv == other   sv < other        // content comparison
 ```
 
-`std::string_view::substr` — **no allocation** (unlike `std::string::substr`).
-This is why zero-copy parsers use `string_view`.
+`std::string_view::substr` — **allocation nahi** (`std::string::substr` ke ulat). Isiliye zero-copy
+parsers `string_view` use karte hain.
 
 ---
 
 ## 🔑 DANGLING — `string_view` ka #1 bug
 
-`string_view` **data ko own nahi karta**. It must not outlive its source.
+`string_view` **data ka maalik nahi**. Use apne source se zyada nahi jeena chahiye.
 
 ```cpp
-// (a) view into a temporary
-std::string_view bad1 = std::string("x") + "y";   // ⚠️ temp destroyed after ; -> dangling
+// (a) temporary ka view
+std::string_view bad1 = std::string("x") + "y";   // ⚠️ ; ke baad temp khatam -> dangling
 
-// (b) return a view of a local
+// (b) local ka view return karna
 std::string_view f() {
     std::string local = "hi";
-    return local;                                  // ⚠️ local destroyed -> dangling
+    return local;                                  // ⚠️ local khatam -> dangling
 }
 
-// (c) view outlives the string
+// (c) view string se zyada jee gaya
 std::string_view later;
-{ std::string s = "block"; later = s; }            // ⚠️ s gone -> later dangling
+{ std::string s = "block"; later = s; }            // ⚠️ s gaya -> later dangling
 
-// (d) std::string mutation invalidates the view
+// (d) std::string badalne se view invalid
 std::string s = "hello";
 std::string_view v = s;
-s += " world";                                     // ⚠️ may reallocate -> v dangling
+s += " world";                                     // ⚠️ realloc ho sakta hai -> v dangling
 
-// (e) std::string::substr returns a STRING, view into it dangles
+// (e) std::string::substr STRING lautata hai, uska view dangle karta hai
 std::string_view w = s.substr(0, 3);               // ⚠️ temp std::string -> w dangling
-std::string_view w = std::string_view(s).substr(0, 3);  // ✅ view into s
+std::string_view w = std::string_view(s).substr(0, 3);  // ✅ s ke andar ka view
 ```
 
-### Where it's safe
-- **Function parameters** — the caller's data is alive for the call. Trivially safe.
-- **Local, used immediately, source alive** — fine.
+### Kahan safe hai
+- **Function parameters** — caller ka data call ke dauraan zinda hai. Apne aap safe.
+- **Local, turant use, source zinda** — theek.
 
-### Where it's dangerous
-- **Stored** (struct member, container) — now you must reason about ownership.
-- **Returned** — only if returning a view of something the *caller* owns
-  (an argument, a static, a member).
+### Kahan khatarnak hai
+- **Store kiya** (struct member, container) — ab ownership ke baare mein sochna padega.
+- **Return kiya** — sirf tab jab view kisi aisi cheez ka ho jiska maalik *caller* hai (ek argument,
+  ek static, ek member).
 
 ---
 
-## ⚠️ Not null-terminated
+## ⚠️ Null-terminated nahi hota
 
 ```cpp
 std::string_view piece = std::string_view("hello world").substr(0, 5);  // "hello"
-piece.data();                    // points to 'h' -- but piece.data()[5] is ' ', NOT '\0'
+piece.data();                    // 'h' pe point karta hai -- par piece.data()[5] ' ' hai, '\0' NAHI
 
-::open(piece.data(), ...);       // ⚠️ C API reads until '\0' -> reads " world..." too
-::open(std::string(piece).c_str(), ...);   // ✅ make an owning, null-terminated copy
+::open(piece.data(), ...);       // ⚠️ C API '\0' tak padhti hai -> " world..." bhi padh legi
+::open(std::string(piece).c_str(), ...);   // ✅ owning, null-terminated copy banao
 ```
 
-`string_view` is just `ptr + len` — there's no terminator guarantee. For C APIs,
-materialize a `std::string`.
+`string_view` bas `ptr + len` hai — terminator ki koi guarantee nahi. C APIs ke liye `std::string`
+banao.
 
 ---
 
 ## `std::string_view` vs `const std::string&` vs `std::string`
 
-| Parameter | Literal `"x"` | `std::string` arg | Copy? | Null-term inside? |
+| Parameter | Literal `"x"` do | `std::string` argument do | Copy? | Andar null-terminated? |
 |---|---|---|---|---|
-| `std::string_view` | free view | free view | no | ❌ |
-| `const std::string&` | **temp `std::string`** | free | no (for `std::string` arg) | ✅ |
-| `std::string` (by value) | temp + move | copy or move | yes-ish | ✅ |
+| `std::string_view` | free view | free view | nahi | ❌ |
+| `const std::string&` | **temp `std::string` banta hai** | free | nahi (`std::string` arg ke liye) | ✅ |
+| `std::string` (by value) | parameter seedha literal se banta hai (SSO se bada ho to allocation) | lvalue → copy, rvalue → move | haan (lvalue pe) | ✅ |
 
-Default read-only param: **`std::string_view`**. Exception: you call `.c_str()`
-inside → `const std::string&` (or make a copy).
+Default read-only parameter: **`std::string_view`**. Exception: andar `.c_str()` chahiye →
+`const std::string&` (ya copy banao).
 
 ---
 
 ## Andar kya hota hai
 
-- `std::string_view` = 2 words (`ptr`, `len`), passed in 2 registers — zero
-  overhead vs `const char*` + separate `size_t`.
-- `sv[i]` → `ptr[i]`, a scaled load.
-- `substr` / `remove_prefix` / `remove_suffix` → pure pointer arithmetic on
-  `ptr` and `len`. No allocation, no copy.
-- `sv == other` → `memcmp` after a length check.
-- `-O2` inlines all of it → a `string_view` loop compiles to the same code as a
-  raw pointer loop.
+- `std::string_view` = 2 words (`ptr`, `len`). Parameter kaise pahunchta hai woh ABI pe depend
+  karta hai — Linux (SysV) pe 2 registers mein; Windows x64 pe (is course ki machine) 16-byte
+  struct pointer ke through (`09-ARRAYS/07` mein `std::span` ke liye GCC 16.2 assembly se dekha,
+  aur loop timing mein koi fark nahi mila).
+- `sv[i]` → `ptr[i]`, ek scaled load.
+- `substr` / `remove_prefix` / `remove_suffix` → `ptr` aur `len` pe sirf pointer arithmetic. Na
+  allocation, na copy.
+- `sv == other` → pehle length check, phir `memcmp`.
+- `-O2` sab inline kar deta hai → `string_view` loop raw pointer loop jaisa hi code ban jaata hai.
 
-> **HFT relevance:** `std::string_view` is *the* string type on HFT hot paths:
-> parse a fixed message into `string_view` fields (symbol, side, tag) — zero
-> allocations, zero copies, just offsets into the receive buffer. `substr` /
-> `remove_prefix` for tokenizing. The dangling rule is the catch: if a parsed
-> record is *stored* past the buffer's life (e.g. the buffer is recycled), those
-> views must become owning copies, or the buffer must be pinned for the record's
-> lifetime. This is a classic zero-copy-parser bug. Folder 38.
+> **HFT relevance:** HFT hot paths pe `std::string_view` hi *the* string type hai: fixed message ko
+> `string_view` fields (symbol, side, tag) mein parse karo — zero allocations, zero copies, bas
+> receive buffer mein offsets. Tokenizing ke liye `substr` / `remove_prefix`. Pakad dangling wala
+> rule hai: agar parsed record buffer ki zindagi ke baad bhi *store* hua (jaise buffer recycle ho
+> gaya), to un views ko owning copies banana padega, ya buffer ko record ki zindagi tak pakad ke
+> rakhna padega. Yeh zero-copy parser ka classic bug hai. Folder 38.
 
 ---
 
 ## Hands-on
 
-`examples/04_string_view.cpp` — one function all sources, cheap slicing,
-zero-copy split, 5 dangling traps. `examples/06_csv_parser.cpp` — a real
-zero-copy parser:
+`examples/04_string_view.cpp` — ek function saare sources pe, sasta slicing, zero-copy split, 3
+dangling traps + null-termination trap. `examples/06_csv_parser.cpp` — ek asli zero-copy parser:
 
 ```bash
 ./build.ps1 10-STRINGS/examples/04_string_view.cpp
@@ -190,28 +191,28 @@ zero-copy parser:
 
 ## ⚠️ Traps
 
-### Trap 1 — `std::string::substr` into a view
+### Trap 1 — `std::string::substr` ka view banana
 ```cpp
-std::string_view v = s.substr(0, 3);   // ⚠️ substr makes a std::string -> v dangles
+std::string_view v = s.substr(0, 3);   // ⚠️ substr std::string banata hai -> v dangle
 ```
 
-### Trap 2 — view of a temporary
+### Trap 2 — temporary ka view
 ```cpp
-std::string_view v = getName() + "!";  // ⚠️ temp gone
+std::string_view v = getName() + "!";  // ⚠️ temp gaya
 ```
 
-### Trap 3 — storing a view past its source
+### Trap 3 — view ko source se zyada der store karna
 ```cpp
 struct Rec { std::string_view name; };
 Rec r{ parse(recvBuffer) };  recvBuffer.clear();   // ⚠️ r.name dangling
 ```
 
-### Trap 4 — `.data()` to a C API
+### Trap 4 — `.data()` C API ko dena
 ```cpp
-printf("%s", sv.data());        // ⚠️ not null-terminated. printf("%.*s", (int)sv.size(), sv.data())
+printf("%s", sv.data());        // ⚠️ null-terminated nahi. printf("%.*s", (int)sv.size(), sv.data())
 ```
 
-### Trap 5 — `string_view` from `std::string` then mutate the string
+### Trap 5 — `std::string` se view banao, phir string badlo
 ```cpp
 std::string_view v = s;  s += "x";   // ⚠️ reallocation -> v dangling
 ```
@@ -222,38 +223,43 @@ std::string_view v = s;  s += "x";   // ⚠️ reallocation -> v dangling
 
 | ❌ Galat | ✅ Sahi |
 |---|---|
-| "`string_view` copies the chars" | Non-owning view — 16 bytes |
-| "`string_view` is safe against dangling" | Only if source outlives it |
-| "`string_view::substr` allocates" | No — pointer math (unlike `std::string::substr`) |
-| "`sv.data()` is null-terminated" | No — `ptr + len`, no terminator |
-| "Take `const std::string&` for read-only params" | `std::string_view` — no temp for literals |
+| "`string_view` chars copy karta hai" | Non-owning view — 16 bytes |
+| "`string_view` dangling se safe hai" | Sirf tab jab source zyada jeeye |
+| "`string_view::substr` allocate karta hai" | Nahi — pointer math (`std::string::substr` ke ulat) |
+| "`sv.data()` null-terminated hai" | Nahi — `ptr + len`, terminator nahi |
+| "Read-only params ke liye `const std::string&` lo" | `std::string_view` — literals ke liye temp nahi banta |
+| "`string_view` hamesha registers mein pass hota hai" | Linux pe haan; Windows x64 pe pointer ke through (09/07) |
 
 ---
 
 ## Exercises
 
-1. **One function:** `bool isPalindrome(std::string_view)` — literal,
-   `std::string`, `substr` of a view. Handle empty, single char.
+1. **Ek function:** `bool isPalindrome(std::string_view)` — literal, `std::string`, aur view ka
+   `substr`. Khaali aur ek char bhi sambhalo.
 
-2. **Trim view:** `std::string_view trim(std::string_view)` — `find_first_not_of`
-   / `find_last_not_of`. No allocation. Test all-whitespace.
+2. **Trim view:** `std::string_view trim(std::string_view)` — `find_first_not_of` /
+   `find_last_not_of`. Allocation nahi. Sab-whitespace test karo.
 
-3. **Zero-copy split:** `std::vector<std::string_view> split(std::string_view,
-   char)` — views into the input. Verify `.data()` pointers land inside the
-   original.
+3. **Zero-copy split:** `std::vector<std::string_view> split(std::string_view, char)` — input ke
+   andar ke views. Check karo ki `.data()` pointers original ke andar hi pade hain.
 
-4. **Dangling hunt:** write each of the 5 dangling patterns. Which does `-Wall` /
-   `-Wdangling` catch? Run one under (Linux) ASan.
+4. **Dangling hunt:** paanchon dangling patterns likho. GCC `-Wall -Wextra` kaunse pakadta hai? (Clang ho
+   to `-Wdangling` bhi try karo — GCC mein yeh flag hai hi nahi.) Ek ko (Linux) ASan ke neeche chalao.
+   <details><summary>Answer (GCC wala hissa)</summary>
 
-5. **`.data()` to printf:** print a non-terminated `string_view` correctly with
-   `%.*s`.
+   GCC 16.2 `-Wall -Wextra` (`-O0` aur `-O2` dono) ne **paanchon mein se ek pe bhi** warning nahi di —
+   chala ke dekha. `string_view` dangling ke liye compiler pe bharosa mat karo; ASan / review / design
+   (views sirf parameters mein) hi asli bachaav hai.
+   </details>
 
-6. **substr trap:** `std::string s = "hello world"; std::string_view v =
-   s.substr(0, 5); std::cout << v;` — `-Wall`? Fix.
+5. **`.data()` printf ko:** non-terminated `string_view` ko `%.*s` se sahi print karo.
 
-7. **Parameter refactor:** take a function `void process(const std::string&)`
-   called with lots of literals. Change to `std::string_view`. Measure temp
-   `std::string` allocations before/after (`operator new` counter).
+6. **substr trap:** `std::string s = "hello world"; std::string_view v = s.substr(0, 5); std::cout
+   << v;` — `-Wall` kuch kehta hai? Fix karo.
+
+7. **Parameter refactor:** ek `void process(const std::string&)` lo jo bahut saare literals ke saath
+   call hota ho. `std::string_view` mein badlo. Pehle/baad temp `std::string` allocations gino
+   (`operator new` counter).
 
 ---
 

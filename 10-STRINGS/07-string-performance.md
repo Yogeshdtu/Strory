@@ -5,65 +5,72 @@
 - `09-ARRAYS/10-array-performance.md`
 
 ## Yeh topic abhi kyun
-`std::string` ka har heap allocation ~50-200 ns leta hai (+ possible lock, cache
-miss). Text-heavy code mein yeh jud jaata hai. Yeh lesson: **allocations kahan
-chhupte hain, aur unhe kaise hataao** — HFT parsing ka core.
+`std::string` ka har heap allocation ek kharcha hai — folder 36 mein naapa gaya: ek 64-byte
+`new`/`delete` ka p50 ~40 ns aur p99.9 ~120 ns, aur mixed-size churn mein p99.9 ~2.6 µs tak
+(`36-LOW-LATENCY-CPP/examples/01_allocation_cost.cpp`, GCC 15.1). Text-heavy code mein yeh jud jaata
+hai. Yeh lesson: **allocations kahan chhupte hain, aur unhe kaise hataao** — HFT parsing ka core.
 
 ---
 
 ## Kahan allocation hota hai
 
+GCC 16.2, `-O0` pe `operator new` gin ke check kiya:
+
 ```cpp
-std::string s = "this is longer than SSO";    // 1 alloc  (short strings: 0 -- file 04)
-std::string t = s;                             // 1 alloc  (copy the heap buffer)
-s += " and more and more and more...";        // 1 alloc per capacity overflow
-std::string u = s.substr(5, 10);               // 1 alloc  (substr copies)
-std::string v = a + b + c;                     // ~2 allocs (temporaries)
-void f(const std::string& p); f("literal");    // 1 alloc  (literal -> temp std::string)
-std::string w = std::to_string(x);             // 1 alloc
-for (auto& p : parts) result = result + p;     // O(n) allocs -- O(n^2) work
+std::string s = "this is longer than SSO";    // 1 alloc  (chhoti strings: 0 -- file 04)
+std::string t = s;                             // 1 alloc  (heap buffer ki copy)
+s += " and more and more and more...";        // capacity bharne pe 1 alloc
+std::string u = s.substr(5, 10);               // SSO se bada ho to 1 alloc (substr copy karta hai)
+std::string v = a + b + c;                     // 20-20 chars ki a,b,c pe: 2 allocs (naapa)
+void f(const std::string& p); f("literal");    // 0 alloc -- "literal" 7 chars, SSO mein aa gaya
+f("this literal is longer than sso");          // 1 alloc -- 31 chars ka temp std::string
+std::string w = std::to_string(x);             // chhote numbers SSO mein; bade string pe alloc
+for (auto& p : parts) result = result + p;     // har iteration alloc -- O(n^2) kaam
 ```
 
 **Zero-alloc alternatives:**
 
-| Costs an allocation | Zero-alloc version |
+| Allocation lagta hai | Zero-alloc version |
 |---|---|
-| `void f(const std::string&)` + literal | `void f(std::string_view)` |
+| `void f(const std::string&)` + lamba literal | `void f(std::string_view)` |
 | `s.substr(a, b)` | `std::string_view(s).substr(a, b)` |
 | `split` → `vector<string>` | `split` → `vector<string_view>` |
 | `a + b + c` | `out.reserve(...); out += a; out += b; out += c;` |
-| `std::to_string(x)` in a loop | `std::to_chars` into a reused buffer |
-| new `std::string` per iteration | one `std::string` `.clear()`'d and reused |
-| `s += x` in a loop | `s.reserve(finalSize)` first |
+| loop mein `std::to_string(x)` | reused buffer mein `std::to_chars` |
+| har iteration nayi `std::string` | ek `std::string`, `.clear()` karke dobara use |
+| loop mein `s += x` | pehle `s.reserve(finalSize)` |
 
 ---
 
-## `reserve()` — the single biggest win
+## `reserve()` — sabse bada faayda
 
 ```cpp
 std::string s;
-for (int i = 0; i < 100000; ++i) s += 'x';    // ⚠️ ~17 reallocations (2x growth), O(n) copying
+for (int i = 0; i < 100000; ++i) s += 'x';    // ⚠️ 13 reallocations (15 se shuru, 2x growth), O(n) copying
 
 std::string s;
-s.reserve(100000);                             // ✅ ONE allocation
+s.reserve(100000);                             // ✅ EK allocation
 for (int i = 0; i < 100000; ++i) s += 'x';
 ```
 
-Same for `std::vector<std::string>` results, output buffers, JSON builders.
-Estimate an upper bound and `reserve` it.
+(GCC 16.2 pe gina: capacity 15 → 30 → … → 122880, yaani **13 badlaav**. `std::vector<int>` capacity 1
+se shuru hota hai, isliye wahan 100000 pe 18 allocations the — `09-ARRAYS/10`.)
+
+`std::vector<std::string>` results, output buffers, JSON builders — sab pe yahi. Upper limit ka
+andaaza lagao aur `reserve` karo.
 
 ---
 
-## Reuse buffers — don't re-allocate per iteration
+## Buffers dobara use karo — har iteration naya allocation nahi
 
 ```cpp
-// ❌ new std::string every line
+// ❌? har line ke liye nayi std::string
 for (std::string line; std::getline(in, line); ) { process(line); }
-//   ^ getline reuses `line`'s capacity across iterations -- this is actually OK-ish
+//   ^ getline iterations ke beech `line` ki capacity reuse karta hai -- yeh asal mein theek-thaak hai
 
-// ❌ genuinely bad -- fresh string per record
+// ❌ sach mein bura -- har record ke liye taaza string
 for (auto& rec : records) {
-    std::string key = rec.venue + ":" + rec.symbol;   // alloc per iteration
+    std::string key = rec.venue + ":" + rec.symbol;   // har iteration allocation
     map[key] = ...;
 }
 
@@ -71,92 +78,91 @@ for (auto& rec : records) {
 std::string key;
 key.reserve(32);
 for (auto& rec : records) {
-    key.clear();                                       // keeps capacity
+    key.clear();                                       // capacity bachi rehti hai
     key += rec.venue; key += ':'; key += rec.symbol;
-    map[key] = ...;                                    // (transparent lookup avoids another alloc)
+    map[key] = ...;                                    // (transparent lookup ek aur alloc bachata hai)
 }
 ```
 
-`clear()` keeps the buffer (file 02) — reuse it.
+`clear()` buffer rakh leta hai (file 02) — use dobara use karo.
 
 ---
 
-## Parse into `string_view`, not `string`
+## `string` mein nahi, `string_view` mein parse karo
 
 ```cpp
-// ❌ each field is a heap allocation
+// ❌ har field ek heap allocation (jab SSO se bada ho)
 struct Trade { std::string symbol; std::string side; double px; long qty; };
 
-// ✅ fields are views into the receive buffer -- ZERO allocations
+// ✅ fields receive buffer ke andar views hain -- ZERO allocations
 struct Trade { std::string_view symbol; std::string_view side; double px; long qty; };
 ```
 
-Measured elsewhere in this course: `for (auto s : names)` (copy) vs
-`for (const auto& s : names)` — **~50x** slower (folder 07 file 04). Same lesson:
-avoid the copy.
+Is course mein aur jagah naapa: `for (auto s : names)` (copy) vs `for (const auto& s : names)` —
+**~50x** slow (folder 07 file 04). Wahi sabak: copy se bacho.
 
-`examples/06_csv_parser.cpp` — parses a whole CSV into `string_view` fields, **0
+`examples/06_csv_parser.cpp` — poori CSV ko `string_view` fields mein parse karta hai, **0
 `std::string` allocations**.
 
 ---
 
-## `from_chars` / `to_chars` — no-alloc number I/O
+## `from_chars` / `to_chars` — bina allocation ke number I/O
 
-`std::stoi` / `std::to_string` / `std::stringstream` allocate. `std::from_chars`
-/ `std::to_chars` write into a caller buffer. **~8x–30x** faster (file 06,
-`examples/05_fast_parsing.cpp`).
+`std::stoi` / `std::to_string` / `std::stringstream` allocation / locale / exceptions ka kharcha
+laate hain. `std::from_chars` / `std::to_chars` caller ke buffer mein kaam karte hain. **~8x–30x**
+tez (file 06, `examples/05_fast_parsing.cpp`, dono compilers pe naapa).
 
 ---
 
-## Small-buffer / static strings for known-bounded data
+## Pata ho ki data kitna bada hoga — chhote/static buffers
 
 ```cpp
 // Fixed-width outbound field
-std::array<char, 8> symbolField;              // stack, no heap
+std::array<char, 8> symbolField;              // stack, heap nahi
 std::ranges::fill(symbolField, ' ');
 std::ranges::copy(sym, symbolField.begin());
 
-// "static vector of char" for bounded scratch
+// bounded scratch ke liye "static vector of char"
 template <std::size_t Cap> struct FixedStr {
     std::array<char, Cap> buf; std::size_t len = 0;
-    void append(std::string_view s);          // asserts len + s.size() <= Cap
+    void append(std::string_view s);          // assert: len + s.size() <= Cap
     std::string_view view() const { return {buf.data(), len}; }
 };
 ```
 
-C++26: `std::inplace_vector`; today: `boost::static_vector`, or roll your own.
+C++26: `std::inplace_vector` (GCC 16.2 pe chal gaya — folder 22 file 15 ki probe); ab tak:
+`boost::static_vector`, ya khud banao.
 
 ---
 
-## `std::string` copy cost — length-dependent (file 04)
+## `std::string` copy ki cost — length pe depend (file 04)
 
-- Short (≤ SSO threshold): copy = 32-byte memcpy, **no allocation**.
-- Long: `new` + `memcpy(len)`.
-- **Move**: long strings → O(1) (steal pointer); short strings → 32-byte copy.
+- Chhoti (≤ SSO threshold): copy = inline chars, **allocation nahi**.
+- Lambi: `new` + `memcpy(len)`.
+- **Move**: lambi strings → O(1) (pointer churaao); chhoti strings → inline chars copy (churaane ko
+  pointer nahi).
 
-So `std::string` for **short keys** (symbols, codes) is fine even on hot-ish
-paths. Long text → views + reserve + reuse.
+Isliye **chhoti keys** (symbols, codes) ke liye `std::string` garam-ish paths pe bhi theek hai. Lamba
+text → views + reserve + reuse.
 
 ---
 
 ## Andar kya hota hai
 
-- `operator new` → allocator: free-list lookup, possibly a syscall (`mmap`/`brk`)
-  for big/first allocations, possibly a lock (multi-threaded). Tens to hundreds
-  of ns, and unpredictable (tail latency).
-- First touch of a fresh page → page fault + zero-fill (folder 29).
-- `+=` beyond capacity → `new` bigger + `memcpy` + `delete` — plus the new buffer
-  is cold.
-- `string_view` ops → pointer arithmetic only. `reserve` → one allocation,
-  amortizes the rest.
+- `operator new` → allocator: free-list mein talaash, badi/pehli allocations pe shayad syscall
+  (`mmap`/`brk`), multi-threaded mein shayad lock. Das se sau ns tak, aur **anishchit** — tail
+  latency yahin se aati hai (folder 36 ke naape hue p99.9 numbers).
+- Naye page ka pehla touch → page fault + zero-fill (folder 29).
+- Capacity ke bahar `+=` → bada `new` + `memcpy` + `delete` — aur naya buffer cache mein thanda.
+- `string_view` operations → sirf pointer arithmetic. `reserve` → ek allocation, baaki sab uspe.
 
-> **HFT relevance:** On the market-data / order-entry path the target is **zero
-> allocations per message**. Techniques: `std::string_view` fields over the
-> receive buffer; `std::from_chars` for numbers; preallocated + reused scratch
-> `std::string`s; fixed `std::array<char, N>` for outbound fixed-width fields;
-> arena/pool allocators for anything that must own (folder 36). An allocation in
-> a decode loop is a p99 latency spike (allocator lock / page fault) and is
-> caught in code review and by allocation-counting tests. Folders 36, 38.
+> **HFT relevance:** Market-data / order-entry path pe target hai **har message pe zero
+> allocations**. Tareeke: receive buffer pe `std::string_view` fields; numbers ke liye
+> `std::from_chars`; pehle se allocate kiye aur dobara use hone wale scratch `std::string`s; bahar
+> jaane wale fixed-width fields ke liye `std::array<char, N>`; jo cheez maalik honi hi chahiye uske
+> liye arena/pool allocators (folder 36). Decode loop mein ek allocation = p99 latency spike
+> (allocator lock / page fault), aur isko code review aur allocation-ginne wale tests pakadte hain.
+> Folders 36, 38.
 
 ---
 
@@ -164,25 +170,25 @@ paths. Long text → views + reserve + reuse.
 
 ```bash
 g++ -std=c++20 -O0 10-STRINGS/examples/03_sso_demo.cpp -o sso && ./sso   # capacity growth
-./build.ps1 fast 10-STRINGS/examples/05_fast_parsing.cpp                  # from_chars vs rest
+./build.ps1 fast 10-STRINGS/examples/05_fast_parsing.cpp                  # from_chars vs baaki
 ./build.ps1 10-STRINGS/examples/06_csv_parser.cpp                         # zero-copy parse
 ```
 
-Add a global `operator new` counter (like `03_sso_demo.cpp`) to `06_csv_parser.cpp`
-— confirm 0 allocations during parsing.
+`06_csv_parser.cpp` mein global `operator new` counter jodo (`03_sso_demo.cpp` jaisa) — confirm karo
+ki parsing ke dauraan 0 allocations hain.
 
 ---
 
 ## ⚠️ Traps
 
-### Trap 1 — `const std::string&` param called with literals
+### Trap 1 — `const std::string&` param ko lambe literals ke saath call karna
 ```cpp
-void log(const std::string& m);  log("hi");   // ⚠️ temp std::string. std::string_view
+void log(const std::string& m);  log("a message longer than fifteen");   // ⚠️ temp std::string. std::string_view lo
 ```
 
-### Trap 2 — `substr` for a view
+### Trap 2 — view ke liye `substr`
 ```cpp
-if (s.substr(0, 3) == "GET") ...   // ⚠️ allocates. std::string_view(s).substr(0, 3)
+if (s.substr(0, 3) == "GET") ...   // ⚠️ nayi string banti hai. std::string_view(s).substr(0, 3)
 ```
 
 ### Trap 3 — `+` chain / `= +` loop
@@ -190,14 +196,14 @@ if (s.substr(0, 3) == "GET") ...   // ⚠️ allocates. std::string_view(s).subs
 for (...) result = result + piece;   // ⚠️ O(n^2). reserve + +=
 ```
 
-### Trap 4 — fresh `std::string` per loop iteration
+### Trap 4 — har loop iteration nayi `std::string`
 ```cpp
-for (...) { std::string tmp = build(); use(tmp); }   // ⚠️ alloc/free per iter. Hoist + clear()
+for (...) { std::string tmp = build(); use(tmp); }   // ⚠️ har iteration alloc/free. Bahar nikaalo + clear()
 ```
 
-### Trap 5 — benchmarking string code at `-O0` and trusting it
-`-O2` for perf; but note allocation elision (file 04) can hide costs — count
-allocations, don't just time.
+### Trap 5 — string code ko `-O0` pe benchmark karke bharosa karna
+Performance ke liye `-O2`; par dhyaan do ki allocation elision (file 04) kharcha chhupa sakta hai —
+sirf time mat lo, **allocations gino**.
 
 ---
 
@@ -205,34 +211,35 @@ allocations, don't just time.
 
 | ❌ Galat | ✅ Sahi |
 |---|---|
-| "`std::string` is cheap, use it everywhere" | Each long-string op is a heap allocation |
-| "`substr` is a view" | It copies — `string_view::substr` for a view |
-| "`reserve` is a micro-optimization" | Turns O(n) allocations into 1 |
-| "`std::string` copy cost is fixed" | Length-dependent (SSO vs heap) |
-| "Parsing into `std::string` fields is fine" | `std::string_view` fields → 0 allocations |
+| "`std::string` sasta hai, har jagah lagao" | Lambi string ka har operation heap allocation |
+| "`substr` ek view hai" | Copy karta hai — view chahiye to `string_view::substr` |
+| "`reserve` micro-optimization hai" | O(n) allocations ko 1 bana deta hai |
+| "`std::string` copy ki cost fixed hai" | Length pe depend (SSO vs heap) |
+| "`std::string` fields mein parse karna theek hai" | `std::string_view` fields → 0 allocations |
+| "`const std::string&` ko literal dena hamesha allocate karta hai" | Sirf SSO se bade literal pe (7-char: 0, 31-char: 1 — gina) |
 
 ---
 
 ## Exercises
 
-1. **Allocation audit:** add an `operator new` counter to `06_csv_parser.cpp`.
-   Allocations during parsing? Now change `Trade`'s fields to `std::string` —
-   count again.
+1. **Allocation audit:** `06_csv_parser.cpp` mein `operator new` counter jodo. Parsing ke dauraan
+   kitne allocations? Ab `Trade` ke fields `std::string` kar do — dobara gino.
 
-2. **`reserve`:** build a 1MB string via `+=` with and without `reserve`. `-O0`
-   (avoid elision), count allocations + time.
+2. **`reserve`:** `+=` se 1MB string banao, `reserve` ke saath aur bina. `-O0` (elision se bachne ke
+   liye), allocations gino + time lo.
 
-3. **`substr` vs view:** `1M` times, `s.substr(0, 5) == "hello"` vs
-   `std::string_view(s).substr(0, 5) == "hello"`. `-O2`, time.
+3. **`substr` vs view:** 1M baar, `s.substr(0, 5) == "hello"` vs `std::string_view(s).substr(0, 5) ==
+   "hello"`. `-O2`, time lo. (Dhyaan: 5 chars SSO mein hain — to allocation nahi, phir bhi farq aaya?
+   Lambi substring se bhi try karo.)
 
-4. **Reuse:** build `venue + ":" + symbol` keys for 100k records — fresh
-   `std::string` per iter vs one reused + `clear()`. Allocation count.
+4. **Reuse:** 100k records ke liye `venue + ":" + symbol` keys banao — har iteration nayi `std::string`
+   vs ek reused + `clear()`. Allocations gino.
 
-5. **Param type:** `void handle(const std::string&)` vs `std::string_view`,
-   called 1M times with a literal. Count temp allocations.
+5. **Param type:** `void handle(const std::string&)` vs `std::string_view`, 1M baar ek literal ke
+   saath call. Temp allocations gino — pehle 7-char literal se, phir 30-char se.
 
-6. **Fixed string:** implement `FixedStr<32>` (`append`, `view`, overflow
-   assert). Use it to format a fixed-width record with zero heap.
+6. **Fixed string:** `FixedStr<32>` implement karo (`append`, `view`, overflow assert). Usse ek
+   fixed-width record bina heap ke format karo.
 
 ---
 

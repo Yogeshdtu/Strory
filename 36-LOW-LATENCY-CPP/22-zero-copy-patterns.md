@@ -109,7 +109,8 @@ buffer → dangling once the buffer is reused. Views die with the scope.
 
 ### Trap 2 — returning a `string_view` to a local
 `std::string_view f() { std::string s = ...; return s; }` — dangles
-immediately (`-Wdangling` may catch it). Return a view into a caller-owned
+immediately (Clang's `-Wdangling` may catch it; GCC 16.2 `-Wall -Wextra` gave **no** warning for this
+pattern when tested — `10-STRINGS/09`). Return a view into a caller-owned
 buffer, or return the `std::string`.
 
 ### Trap 3 — unaligned overlay reads

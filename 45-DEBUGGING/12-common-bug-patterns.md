@@ -388,7 +388,7 @@ Har row: **Symptom → Tool → Fix**. Cross-refs poore course mein.
 - **Symptom:** `std::initializer_list` member outlives its backing
   array; `auto&& x = f();` then `x` used after the temp's full-expression
   in some cases.
-- **Tool:** ASan · `-Wdangling` · review.
+- **Tool:** ASan · Clang `-Wdangling` (GCC has no such flag; `-Wdangling-reference` covers only some cases) · review.
 - **Fix:** don't store `initializer_list`; copy into a `vector`; be
   explicit with `auto` (value) vs `auto&&`.
 - Refs: `25-OBJECT-MODEL/05`.

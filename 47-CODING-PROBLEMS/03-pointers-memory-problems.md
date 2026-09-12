@@ -82,7 +82,8 @@ int* d = &(*std::vector<int>{1,2,3}.begin()); // (4)
 (1) uninitialized — indeterminate, read = UB. (2) null — deref = UB par
 well-defined "null". (3) dangling — `c` ab freed memory ko point karta hai;
 `delete c` phir se = double free. `c = nullptr` set karo. (4) dangling — temporary
-`vector` statement ke baad destroy, `d` garbage. `-Wdangling` / ASan pakadta hai.
+`vector` statement ke baad destroy, `d` garbage. ASan pakadta hai; Clang `-Wdangling` bhi (GCC 16.2 `-Wall` ne
+temporary vector ke iterator pe warning nahi di — chala ke dekha).
 </details>
 
 ### A6. `const` placement

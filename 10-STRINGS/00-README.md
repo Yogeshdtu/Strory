@@ -39,8 +39,13 @@ jo HFT mein allocation avoidance ka classic example hai.
 ## Status
 ✅ **COMPLETE** (Batch 4). 9 lessons + exercises + 6 compile-verified examples.
 Highlights: C-strings → `std::string` → `std::string_view`, **SSO threshold
-measured (15 chars, `03_sso_demo.cpp` at `-O0`)**, `from_chars` vs `stoi`
-**measured ~8x** (`05_fast_parsing.cpp`), zero-copy CSV parser, UTF-8 bytes ≠ chars.
+naapa (15 chars, `03_sso_demo.cpp` `-O0` pe)**, `from_chars` vs `stoi`
+**naapa ~8x** (`05_fast_parsing.cpp`, GCC 15.1 aur 16.2 dono pe), zero-copy CSV parser, UTF-8 bytes ≠ chars.
+
+**Hinglish pass (gap-fix part 2):** saare lessons + READMEs + comments Hinglish mein; saath mein GCC 16.2 pe
+chala ke accuracy fixes — `-Wdangling` GCC ka flag hi nahi (aur GCC dangling `string_view` pe warn nahi karta),
+`char* = "lit"` pe GCC sirf warning deta hai, `string_view` Windows x64 pe pointer se jaata hai, reallocation
+counts theek kiye (1e6 appends = 17, 100k = 13), `std::string(nullptr)` pe libstdc++ exception phenkta hai.
 
 ## Next
 → [`../11-STRUCTS/00-README.md`](../11-STRUCTS/00-README.md)

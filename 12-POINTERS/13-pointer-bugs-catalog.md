@@ -137,7 +137,7 @@ int i = *reinterpret_cast<int*>(&f);        // ⚠️ float ke bytes ko int maan
 ```cpp
 const char* name() { return std::string("x").c_str(); }   // ⚠️ temp khatam -> dangling
 ```
-**Pakdo kaise:** `-Wdangling` (thoda-bahut), ASan. **Fix:** value se return karo;
+**Pakdo kaise:** GCC `-Wdangling-reference` (kuch function-return cases), Clang `-Wdangling`, ASan. **Fix:** value se return karo;
 ya maalik ko zinda rakho.
 
 ---
@@ -168,7 +168,8 @@ mein likho** — `std::unique_ptr<Widget>` return matlab "caller maalik hai"; ra
 
 ```
 COMPILE:  -Wall -Wextra -Wshadow -Wnull-dereference -Wreturn-local-addr
-          -Wdangling -Wuninitialized  (aur CI mein -Werror)
+          -Wdangling-pointer -Wdangling-reference -Wuninitialized  (aur CI mein -Werror)
+          (GCC flags. Clang pe -Wdangling bhi. GCC pe -Wdangling option hi nahi hai.)
 RUNTIME:  -fsanitize=address,undefined   (Linux/Clang; MinGW pe nahi)
           -D_GLIBCXX_ASSERTIONS  (kahin bhi; GCC 16.2 pe sirf -O0 pe default on -- -O2 pe khud lagao)
           Valgrind gehri heap analysis ke liye
@@ -226,8 +227,8 @@ DESIGN:   RAII -- std::vector / std::unique_ptr / std::string memory ke maalik
    handle return kare, doosra jo borrowed view. Ownership bilkul saaf hona chahiye.
 
 6. **Warning audit:** apne pehle wale pointer exercises ko
-   `-Wall -Wextra -Wshadow -Wnull-dereference -Wdangling -Wreturn-local-addr
-   -Werror` se compile karo. Sab theek karo.
+   `-Wall -Wextra -Wshadow -Wnull-dereference -Wdangling-pointer -Wdangling-reference
+   -Wreturn-local-addr -Werror` se compile karo (GCC). Sab theek karo.
 
 ---
 

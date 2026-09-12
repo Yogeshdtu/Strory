@@ -20,7 +20,7 @@ Lessons 01–09 aur saare 6 examples chalaye hue (`03_sso_demo` ko `-O0` pe).
 11. `std::string_view` — contents, size, ownership?
 12. `string_view` param vs `const std::string&` — literal ke saath farq?
 13. `string_view::substr` vs `std::string::substr` — allocation?
-14. `string_view` kab dangle karta hai (3 patterns)?
+14. `string_view` kab dangle karta hai (3 patterns)? Compiler warning deta hai?
 15. `std::from_chars` vs `std::stoi` — 4 differences?
 16. `from_chars` whitespace / partial parse / errors?
 17. `std::string` allocation kahan-kahan chhupta hai (5)?
@@ -32,12 +32,14 @@ Lessons 01–09 aur saare 6 examples chalaye hue (`03_sso_demo` ko `-O0` pe).
 
 ## PART B — Output prediction
 
+(Saare jawab GCC 16.2 / libstdc++ pe chala ke check kiye.)
+
 ### B1
 ```cpp
 char s[] = "abc";
 std::cout << sizeof(s) << " " << std::strlen(s);
 ```
-<details><summary>Answer</summary>`4 3` — array includes `'\0'`; `strlen` doesn't count it.</details>
+<details><summary>Answer</summary>`4 3` — array mein `'\0'` shaamil hai; `strlen` use nahi ginta.</details>
 
 ### B2
 ```cpp
@@ -52,7 +54,7 @@ std::cout << s.size() << " " << (s.find("world") != std::string::npos);
 std::string a = "cat", b = "cat";
 std::cout << std::boolalpha << (a == b) << " " << (a.data() == b.data());
 ```
-<details><summary>Answer</summary>`true false` — content equal, separate storage.</details>
+<details><summary>Answer</summary>`true false` — content barabar, storage alag-alag.</details>
 
 ### B4
 ```cpp
@@ -61,22 +63,23 @@ std::string_view v = s;
 s = "a much longer string that forces a reallocation here";
 std::cout << v;   // ??
 ```
-<details><summary>Answer</summary>UB — `v` dangles after `s` reallocates. May print old data / garbage / crash.</details>
+<details><summary>Answer</summary>UB — `s` realloc hone ke baad `v` dangle karta hai. Purana data / garbage / crash kuch bhi. (GCC isko warning se nahi pakadta — lesson 09.)</details>
 
 ### B5
 ```cpp
 int v = 0;
-auto [p, ec] = std::from_chars("  42", "  42" + 4, v);
+const char* in = "  42";
+auto [p, ec] = std::from_chars(in, in + 4, v);
 std::cout << (ec == std::errc{}) << " " << v;
 ```
-<details><summary>Answer</summary>`0 0` — `from_chars` doesn't skip leading whitespace → `invalid_argument`, `v` untouched (0).</details>
+<details><summary>Answer</summary>`0 0` — `from_chars` shuru ke whitespace skip nahi karta → `invalid_argument`, aur `v` ko haath nahi lagta (0 hi raha).</details>
 
 ### B6
 ```cpp
-std::string s = "café";   // UTF-8: 'é' is 2 bytes
+std::string s = "café";   // UTF-8: 'é' 2 bytes ka hai
 std::cout << s.size();
 ```
-<details><summary>Answer</summary>`5` — bytes, not characters.</details>
+<details><summary>Answer</summary>`5` — bytes, characters nahi.</details>
 
 ### B7
 ```cpp
@@ -85,7 +88,7 @@ std::cout << s.capacity() << " ";
 for (int i = 0; i < 16; ++i) s += 'x';
 std::cout << s.size() << "/" << s.capacity();
 ```
-<details><summary>Answer</summary>libstdc++: `15 16/30` — starts with SSO capacity 15; the 16th char forces a heap alloc, capacity doubles to 30.</details>
+<details><summary>Answer</summary>libstdc++: `15 16/30` — SSO capacity 15 se shuru; 16th char heap allocation karwata hai, capacity double hoke 30.</details>
 
 ### B8
 ```cpp
@@ -94,7 +97,7 @@ int fields = 1;
 for (char c : s) if (c == ',') ++fields;
 std::cout << fields;
 ```
-<details><summary>Answer</summary>`4` — three commas → four fields (one empty).</details>
+<details><summary>Answer</summary>`4` — teen commas → chaar fields (ek khaali).</details>
 
 ---
 
@@ -103,9 +106,9 @@ std::cout << fields;
 ### C1
 ```cpp
 char name[8];
-std::strcpy(name, userInput);   // userInput length unknown
+std::strcpy(name, userInput);   // userInput ki length pata nahi
 ```
-<details><summary>Answer</summary>Buffer overflow — `strcpy` doesn't check `name`'s size. Use `std::string`, or bounded copy with an explicit capacity check.</details>
+<details><summary>Answer</summary>Buffer overflow — `strcpy` `name` ka size check nahi karta. `std::string` lo, ya explicit capacity check ke saath bounded copy.</details>
 
 ### C2
 ```cpp
@@ -114,27 +117,27 @@ std::string_view getName() {
     return full;
 }
 ```
-<details><summary>Answer</summary>Returns a view of a local `std::string` → dangling. Return `std::string` (by value), or a view of caller-owned data.</details>
+<details><summary>Answer</summary>Local `std::string` ka view return → dangling. `std::string` (by value) return karo, ya caller ke data ka view. (GCC 16.2 `-Wall -Wextra` is pe warning nahi deta.)</details>
 
 ### C3
 ```cpp
 const char* path = config["file"].c_str();
 loadFile(path);
 ```
-<details><summary>Answer</summary>If `config["file"]` returns a temporary `std::string`, `.c_str()` dangles immediately. Bind the `std::string` to a named variable first.</details>
+<details><summary>Answer</summary>Agar `config["file"]` temporary `std::string` lautata hai, to `.c_str()` turant dangle. Pehle `std::string` ko ek named variable mein rakho.</details>
 
 ### C4
 ```cpp
 if (line.find("ERROR") >= 0) alert();
 ```
-<details><summary>Answer</summary>`std::string::npos` is a huge unsigned value → `>= 0` is always true → `alert()` fires on every line. Use `!= std::string::npos`.</details>
+<details><summary>Answer</summary>`std::string::npos` bahut bada unsigned value hai → `>= 0` hamesha true → har line pe `alert()` chalega. `!= std::string::npos` likho.</details>
 
 ### C5
 ```cpp
 std::string result;
 for (const auto& tok : tokens) result = result + tok + " ";
 ```
-<details><summary>Answer</summary>O(n²) — each `result + tok` builds a new string. `result += tok; result += ' ';` (and `reserve`).</details>
+<details><summary>Answer</summary>O(n²) — har `result + tok` nayi string banata hai (kyunki `result` lvalue hai, har baar copy). `result += tok; result += ' ';` (aur `reserve`).</details>
 
 ### C6
 ```cpp
@@ -142,64 +145,61 @@ std::string s = "hello world";
 std::string_view w = s.substr(0, 5);
 process(w);
 ```
-<details><summary>Answer</summary>`std::string::substr` returns a temporary `std::string`; `w` views into it → dangling. `std::string_view(s).substr(0, 5)`.</details>
+<details><summary>Answer</summary>`std::string::substr` temporary `std::string` lautata hai; `w` usme dekhta hai → dangling. `std::string_view(s).substr(0, 5)` lo.</details>
 
 ### C7
 ```cpp
-std::string s = "Δelta";           // UTF-8: 'Δ' is 2 bytes
+std::string s = "Δelta";           // UTF-8: 'Δ' 2 bytes ka hai
 std::string first = s.substr(0, 1);
 ```
-<details><summary>Answer</summary>Splits the 2-byte `Δ` → `first` is half a character (invalid UTF-8). Only slice at known character boundaries.</details>
+<details><summary>Answer</summary>2-byte `Δ` beech se kata → `first` mein aadha character (invalid UTF-8; size 1, jabki `s.size()` 6). Sirf pakki character boundaries pe slice karo.</details>
 
 ### C8
 ```cpp
 for (char& c : s) c = std::tolower(c);
 ```
-<details><summary>Answer</summary>`std::tolower(int)` with a negative `char` (non-ASCII byte) is UB. `std::tolower(static_cast<unsigned char>(c))`. (Also ASCII-only.)</details>
+<details><summary>Answer</summary>Negative `char` (non-ASCII byte) ke saath `std::tolower(int)` UB hai. `std::tolower(static_cast<unsigned char>(c))`. (Aur yeh sirf ASCII ke liye hai.)</details>
 
 ---
 
 ## PART D — Practical tasks
 
-### D1. String utility library (all zero-alloc where possible)
+### D1. String utility library (jahan ho sake zero-alloc)
 ```cpp
 std::string_view trim(std::string_view);
 std::vector<std::string_view> split(std::string_view, char);
 bool iequalsAscii(std::string_view, std::string_view);          // case-insensitive ASCII
-std::string join(std::span<const std::string_view>, std::string_view sep);   // one alloc, reserved
+std::string join(std::span<const std::string_view>, std::string_view sep);   // ek alloc, reserved
 std::string_view stripPrefix(std::string_view, std::string_view prefix);
 ```
-Full test suite: empty, single, all-delim, no-delim, unicode-passthrough.
+Poora test suite: khaali, ek element, sab delimiter, koi delimiter nahi, unicode jaisa ka taisa.
 
 ### D2. `from_chars` wrappers
 ```cpp
-std::optional<long long> parseInt(std::string_view);            // whole string, no ws
+std::optional<long long> parseInt(std::string_view);            // poori string, whitespace nahi
 std::optional<double>    parseDouble(std::string_view);
 std::optional<long long> parseIntSkipWs(std::string_view);
 ```
-Reject trailing junk. Handle overflow → `nullopt`. 10+ test cases each.
+Peeche ka kachra reject karo. Overflow → `nullopt`. Har ek ke 10+ test cases.
 
 ### D3. Key-value config parser
-Parse `key = value` lines (with `#` comments, whitespace, quoted values) from a
-string into `std::unordered_map<std::string, std::string>`. Zero-copy where the
-map can borrow (it can't for storage — discuss). Report line numbers on errors.
+String se `key = value` lines (`#` comments, whitespace, quoted values ke saath) parse karke
+`std::unordered_map<std::string, std::string>` mein daalo. Jahan map udhaar le sake wahan zero-copy
+(storage ke liye nahi le sakta — charcha karo). Errors pe line number batao.
 
-### D4. Allocation-counting CSV parser
-Take `06_csv_parser.cpp`. Add a global `operator new` counter. Prove **0
-allocations** during parsing with `string_view` fields. Then switch `Trade` to
-owning `std::string` fields — count again. Then add `reserve` on the records
-vector — count again.
+### D4. Allocation ginne wala CSV parser
+`06_csv_parser.cpp` lo. Global `operator new` counter jodo. `string_view` fields ke saath parsing ke
+dauraan **0 allocations** saabit karo. Phir `Trade` ko owning `std::string` fields pe badlo — dobara
+gino. Phir records vector pe `reserve` jodo — phir gino.
 
 ### D5. Fixed-width record formatter (zero heap)
-`FixedStr<N>` (`append(string_view)`, `appendInt`, `pad(char, n)`, `view()`) using
-`std::array<char, N>`. Format an outbound order message (fixed-width symbol,
-right-justified price, side flag) with **zero allocations**. `static_assert` the
-total width.
+`std::array<char, N>` se `FixedStr<N>` (`append(string_view)`, `appendInt`, `pad(char, n)`, `view()`).
+Ek outbound order message (fixed-width symbol, right-justified price, side flag) **zero allocations** se
+format karo. Kul width ka `static_assert`.
 
 ### D6. `std::from_chars` benchmark suite
-Reproduce `05_fast_parsing.cpp` + add `strtol`, a hand-rolled digit loop, and
-`std::from_chars` with `first != last` junk. Table: ns/parse. `-O2` and
-`-O3 -march=native`.
+`05_fast_parsing.cpp` ko dobara banao + `strtol`, haath ka digit loop, aur `first != last` kachre wala
+`std::from_chars` jodo. Table: ns/parse. `-O2` aur `-O3 -march=native`.
 
 ### D7. UTF-8 toolkit
 ```cpp
@@ -208,24 +208,24 @@ bool        isValidUtf8(std::string_view);
 std::string_view truncateCodepoints(std::string_view, std::size_t maxCP);
 std::string      reverseCodepoints(std::string_view);
 ```
-Test with ASCII, 2/3/4-byte sequences, deliberately broken bytes, empty.
+ASCII, 2/3/4-byte sequences, jaan-boojh kar toote bytes, aur khaali input se test karo.
 
 ---
 
 ## PART E — Self-assessment
 
 ```
-[ ] C-string layout, '\0', strlen O(n), strcpy danger -- clear
-[ ] std::string API (size O(1), .at, +=, clear keeps capacity)
-[ ] SSO -- kya hai, threshold, -O0 pe measure kiya
+[ ] C-string layout, '\0', strlen O(n), strcpy ka danger -- saaf
+[ ] std::string API (size O(1), .at, +=, clear capacity rakhta hai)
+[ ] SSO -- kya hai, threshold, -O0 pe khud naapa
 [ ] Capacity growth ~2x, reserve() ka faayda
 [ ] std::string_view -- non-owning, no-alloc, substr = view
-[ ] string_view dangling ke patterns aur kahan safe
-[ ] string_view not null-terminated -- C API trap
-[ ] from_chars vs stoi vs atoi vs stringstream (measured ~8x-30x)
-[ ] from_chars strictness (no ws skip, errc, partial parse)
+[ ] string_view dangling ke patterns, kahan safe, aur compiler warn NAHI karta
+[ ] string_view null-terminated nahi -- C API trap
+[ ] from_chars vs stoi vs atoi vs stringstream (naapa ~8x-30x, dono compilers pe)
+[ ] from_chars strictness (ws skip nahi, errc, partial parse)
 [ ] Allocation kahan chhupta hai, zero-alloc alternatives
-[ ] Parse into string_view fields = 0 allocations
+[ ] string_view fields mein parse = 0 allocations
 [ ] UTF-8: std::string = bytes, size() != char count
 [ ] substr/index/reverse UTF-8 pe kab safe
 [ ] tolower(char) ka unsigned-char cast
@@ -243,52 +243,51 @@ Test with ASCII, 2/3/4-byte sequences, deliberately broken bytes, empty.
 
 ### Challenge 1: "Zero-allocation line protocol parser"
 
-Parse a stream of newline-delimited ASCII messages of the form:
+Newline se alag ASCII messages ki ek stream parse karo, is format mein:
 ```
 <type>|<seq>|<symbol>|<field>=<val>,<field>=<val>,...
 ```
-into a `struct Msg { char type; long long seq; std::string_view symbol;
-std::array<std::pair<std::string_view, std::string_view>, 8> fields; size_t
-nFields; };`
+`struct Msg { char type; long long seq; std::string_view symbol; std::array<std::pair<std::string_view,
+std::string_view>, 8> fields; size_t nFields; };` mein.
 
-Requirements: **0 heap allocations** during parsing (prove with an `operator new`
-counter), all fields are `string_view`s into the input buffer, malformed lines
-→ a clean error (not a crash), `from_chars` for numbers. Fuzz it with truncated /
-oversized / garbage input — never OOB, never allocate.
+Shartein: parsing ke dauraan **0 heap allocations** (`operator new` counter se saabit karo), saare
+fields input buffer ke andar `string_view`s, galat lines → saaf error (crash nahi), numbers ke liye
+`from_chars`. Adhoore / zaroorat se bade / kachre input se fuzz karo — kabhi OOB nahi, kabhi allocation
+nahi.
 
-Then: add a "buffer recycling" mode where the input buffer is reused for the next
-batch. Show the dangling-view bug (stored `Msg`s now read the next batch), then
-fix it (copy `symbol` into an SSO `std::string`, or an arena).
+Phir: ek "buffer recycling" mode jodo jisme input buffer agle batch ke liye dobara use hota hai.
+Dangling-view bug dikhao (store kiye `Msg` ab agla batch padh rahe hain), phir fix karo (`symbol` ko
+SSO `std::string` mein copy karo, ya arena mein).
 
 ### Challenge 2: "String bug museum"
 
-Every bug from lesson 09 as a live demo: buggy version + the tool that catches it
-(compiler warning text, ASan output if on Linux, or reasoning for MinGW) + fixed
-version + an input where the bug visibly misbehaves. Extend `04_string_view.cpp`.
+Lesson 09 ka har bug ek live demo ki tarah: buggy version + use pakadne wala tool (compiler warning ka
+text — ya yeh saboot ki GCC ne warning *nahi* di; Linux pe ASan output; ya MinGW ke liye reasoning) +
+fixed version + ek input jahan bug saaf galat behave kare. `04_string_view.cpp` ko extend karo.
 
 ### Challenge 3: "SSO + growth study"
 
-Instrument `std::string` (via `operator new` override) and produce, at `-O0`:
-- exact SSO threshold on your stdlib
-- allocation count and total bytes for building an `N`-char string via `+=` for
-  `N = 10, 100, 1000, 100000` — with and without `reserve`
-- a table: `push_back` count vs reallocation count vs total memcpy bytes
-- repeat with libc++ if available (WSL) — different threshold?
+`std::string` ko (`operator new` override se) instrument karo aur `-O0` pe yeh nikaalo:
+- aapki stdlib ka exact SSO threshold
+- `+=` se `N`-char string banane mein allocation count aur kul bytes, `N = 10, 100, 1000, 100000` ke liye —
+  `reserve` ke saath aur bina
+- ek table: `push_back` count vs reallocation count vs kul memcpy bytes
+- WSL pe libc++ ho to wahan bhi — threshold alag aaya?
 
-Write up: how many allocations does `reserve` save for `N = 10^6`?
+Likho: `N = 10^6` ke liye `reserve` kitne allocations bachata hai? (Is repo mein GCC 16.2 pe 1e6 appends
+= 17 reallocations gine gaye — lesson 04.)
 
 ---
 
 ## 🎉 Folder 10 complete
 
-Strings: C-strings (`char[]` + `'\0'`, manual, dangerous), `std::string`
-(owning, safe, SSO — measured 15-char threshold), `std::string_view` (zero-copy
-view, dangling rule), `from_chars`/`to_chars` (measured ~8x–30x vs `stoi`/
-`stringstream`), the allocation-avoidance playbook, UTF-8 (bytes ≠ characters),
-and the bug catalogue.
+Strings: C-strings (`char[]` + `'\0'`, manual, khatarnak), `std::string` (owning, safe, SSO — 15-char
+threshold naapa), `std::string_view` (zero-copy view, dangling rule — aur compiler ki khamoshi),
+`from_chars`/`to_chars` (`stoi`/`stringstream` se ~8x–30x tez, naapa), allocation se bachne ka playbook,
+UTF-8 (bytes ≠ characters), aur bug catalogue.
 
-Agla: **structs** — related data bundled together, plus **padding & alignment**
-(HFT's biggest cache lever).
+Agla: **structs** — jude hue data ko ek saath bandhna, plus **padding & alignment** (HFT ka sabse bada
+cache lever).
 
 ---
 

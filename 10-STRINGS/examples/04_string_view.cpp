@@ -71,16 +71,19 @@ int main() {
     //  4. ⚠️ DANGLING -- #1 string_view bug
     // ============================================================
     std::cout << "\n===== 4. ⚠️ dangling traps =====\n";
+    // Dhyaan: GCC 16.2 `-Wall -Wextra` in dangling patterns pe KOI warning nahi deta (chala ke
+    // dekha, lesson 09). Isliye (a)/(b) comment mein hain aur (c) ka read comment kiya hai --
+    // chalane pe UB hota. Linux pe ASan (-fsanitize=address) inhe runtime pe pakadta hai.
 
-    //  (a) view into a temporary
+    //  (a) temporary ka view
     // std::string_view bad = std::string("temp") + "!";   // ⚠️ temp gone after ;
     std::cout << "  (a) sv = std::string(\"x\") + \"y\";  -> temp destroyed, sv dangling\n";
 
-    //  (b) view returned from function holding a local
+    //  (b) function jo apne local ka view lautaye
     // std::string_view f() { std::string local = "hi"; return local; }  // ⚠️
     std::cout << "  (b) return string_view of a local std::string -> dangling\n";
 
-    //  (c) view outlives the string
+    //  (c) view string se zyada jee gaya
     std::string_view later;
     {
         std::string temp = "block-scoped";
@@ -89,7 +92,7 @@ int main() {
     // std::cout << later;   // ⚠️ UB
     std::cout << "  (c) view assigned inside a block, used after -> dangling\n";
 
-    //  (d) .data() is NOT null-terminated
+    //  (d) .data() null-terminated NAHI hota (dangling nahi, par C API ke saath utna hi khatarnak)
     std::string_view piece = std::string_view("hello world").substr(0, 5);  // "hello"
     std::cout << "  (d) piece.data() -> points to 'h' but NEXT char is ' ', not '\\0'.\n"
                  "      C API ko piece.data() mat do -- std::string(piece).c_str() use karo.\n";

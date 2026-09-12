@@ -116,7 +116,8 @@ int& bad() {
 int& r = bad();                  // r ek mari hui jagah point karta hai -> UB
 ```
 
-`-Wreturn-local-addr` / `-Wdangling` warn karte hain. **Local ko by value return
+GCC pe `-Wreturn-local-addr` (`-Wall` mein) warn karta hai; Clang pe `-Wreturn-stack-address`.
+(Dhyaan: `-Wdangling` sirf Clang ka flag hai — GCC use pe `unrecognized command-line option` deta hai.) **Local ko by value return
 karo** (RVO se free). Reference tabhi jab data caller/member/static ho (lesson 06).
 
 ---

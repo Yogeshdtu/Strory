@@ -147,7 +147,7 @@ index-based loop with cached `size()`.
 | Tool | Kya pakadta |
 |---|---|
 | `-Wall -Wextra` | `-Wreturn-local-addr`, `-Wdangling-reference` (GCC13+), `-Wrange-loop-construct` |
-| `-Wdangling` / `-Wdangling-gsl` (clang) | view/temporary bindings |
+| `-Wdangling` / `-Wdangling-gsl` (**sirf Clang** — GCC mein `-Wdangling` option hi nahi) | view/temporary bindings |
 | ASan (`-fsanitize=address`) | stack-use-after-return/-scope, heap-use-after-free — **exact line** |
 | UBSan | kuch reference misuse |
 | `_GLIBCXX_ASSERTIONS` | container **index** OOB — dangling nahi |
