@@ -1,0 +1,59 @@
+# Build output
+.build/
+build/
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+a.out
+
+# Compiler intermediates
+*.i
+*.ii
+*.s
+*.gch
+*.pch
+
+# Profiling / coverage
+*.gcda
+*.gcno
+*.gcov
+perf.data
+perf.data.old
+*.profraw
+*.profdata
+callgrind.out.*
+cachegrind.out.*
+massif.out.*
+*.svg
+
+# Debug
+core
+core.*
+vgcore.*
+*.dSYM/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+compile_commands.json
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Aapke personal notes track NAHI honge (yeh jaan-boojh kar hai --
+# apne notes apne paas rakho, repo mein commit mat karo)
+MY-NOTES.md
+**/MY-NOTES.md
+scratch/

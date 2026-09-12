@@ -1,0 +1,5 @@
+gcm.cache/
+*.gcm
+*.o
+modules_demo
+modules_demo.exe
