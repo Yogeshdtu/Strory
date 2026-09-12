@@ -130,6 +130,69 @@ std::cout << guard;
 
 ---
 
+## PART B2 — What happens next?
+
+Output prediction poora output poochta hai. Yahan sawaal ek **khaas pal** ka hai: "is line
+ke baad control **kahan** jaayega?" Pehle jawab likho, phir chala ke check karo. (Saare
+jawab GCC 16.2 pe chala ke liye gaye hain.)
+
+### N1
+```cpp
+for (int i = 0; i < 3; ++i) {
+    if (i == 1) continue;     // <- i == 1 pe yahan pahunche. AGLA kaunsa kaam hoga?
+    std::cout << i;
+}
+```
+<details><summary>Answer</summary>
+
+`continue` body ka baaki hissa (`std::cout << i`) **chhod deta hai** aur seedha loop ke
+update `++i` pe jaata hai, phir condition `i < 3` check hoti hai. Isliye 1 print nahi hota.
+Poora output: `02`.
+</details>
+
+### N2
+```cpp
+int i = 5;
+while (i-- > 0)               // <- pehli baar condition check hui. i kitna hai, aur kya print hoga?
+    std::cout << i;
+```
+<details><summary>Answer</summary>
+
+`i--` **purani value** (5) se compare karta hai, **phir** `i` ko 4 karta hai. Isliye body mein
+pehla print `4` hai, `5` nahi. Output: `43210`. Aakhri check mein `0 > 0` false hua, par
+decrement tab bhi hua — loop ke baad `i` ki value `-1` hai.
+</details>
+
+### N3
+```cpp
+for (int i = 0; i < 3; ++i)
+    for (int j = 0; j < 3; ++j) {
+        if (j == 1) break;    // <- yeh break kaunsa loop todega? Agla kaunsa line chalega?
+        std::cout << i << j << ' ';
+    }
+```
+<details><summary>Answer</summary>
+
+`break` sirf **sabse andar wala** loop (j wala) todta hai. Control bahar wale loop ke `++i`
+pe jaata hai, aur j phir 0 se shuru hota hai. Output: `00 10 20 ` — har `i` ke liye sirf
+`j = 0` print hua.
+</details>
+
+### N4
+```cpp
+int i = 0;
+do {
+    std::cout << i;           // <- condition to pehle se false hai. Kya yeh line chalegi?
+} while (i > 0);
+```
+<details><summary>Answer</summary>
+
+Haan, **ek baar**. `do-while` body pehle chalata hai, condition baad mein check karta hai.
+Output: `0`. Wahi code `while (i > 0) { ... }` se likhte to kuch print nahi hota.
+</details>
+
+---
+
 ## PART C — Find the bug
 
 ### C1

@@ -378,6 +378,37 @@ the split show a measurable win?
 
 ---
 
+## Challenge
+
+Open-ended — answer key nahi. Har technique ke baad **pehle vs baad** ka p50 **aur** p99.9
+likho (sirf mean nahi). Koi technique kaam na aaye to woh bhi likho — file 24 ka point yahi hai.
+
+### Challenge 1 — zero-allocation hot path ka audit
+Global `operator new` / `operator delete` ko counters ke saath replace karo (folder 14
+file 05 wali "counted `operator new`" technique; kyun zaroori — file 04). Ek mini pipeline
+chalao — parse → book update → signal — 1M messages. Target: **warmup ke baad 0
+allocations**. Phir jaan-boojh kar ek preallocation hatao (jaise ek `std::vector` ka
+`reserve`) aur dikhao: allocation count kitna bada, aur p50 / p99.9 pe kya asar pada. Asar
+p50 pe dikha, tail pe, dono pe, ya kahin nahi — jo naapa wahi likho.
+
+### Challenge 2 — pool vs arena vs PMR vs `new`: lifetime ke hisaab se faisla
+Ek hi workload, teen lifetime patterns: (a) sab objects chhote-jeevan wale, (b) sab lambe,
+(c) mix. Char allocators pe chalao: `new`/`delete`, `examples/02_memory_pool.cpp` ka
+`FixedPool`, `examples/04_arena_allocator.cpp` ka `Arena`, aur
+`std::pmr::unsynchronized_pool_resource` / `monotonic_buffer_resource` (`examples/05`). Har
+combination ka p50 / p99.9 per op aur memory high-water mark. Aakhir mein ek decision table:
+"yeh lifetime pattern → yeh allocator, kyunki ...".
+
+### Challenge 3 — jitter ka shikaar
+Ek tight loop 60 seconds chalao jo har iteration ka latency record kare (folder 35 ka
+histogram). Tail ke spikes ke source dhoondho: page faults (file 18), context switches,
+timer interrupts, frequency scaling (file 03). Phir mitigations **ek-ek karke** lagao:
+prefault/warmup (`examples/11_page_fault_warmup.cpp`), CPU pinning (file 19), cache warming
+(file 20). Har step ke baad p99 / p99.9 / p99.99 / max. Jo mitigation is OS/machine pe kaam
+nahi aaya, uska kaaran likho.
+
+---
+
 ## Interview questions (folder-wide)
 
 1. Latency / throughput / jitter — three axes; HFT's primary metric; budget thinking.

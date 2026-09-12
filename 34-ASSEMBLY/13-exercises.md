@@ -334,6 +334,40 @@ reappears. This is folder 33 lesson 06/14, seen in asm.
 
 ---
 
+## Challenge
+
+Open-ended — answer key nahi. Har claim ke saath asli `objdump` / `-S` output ka tukda paste karo.
+
+### Challenge 1 — bina source ke reverse engineering
+Ek dost (ya ek hafte baad aap khud) ke liye 5 functions `-O2` pe ek object file mein compile
+karo, source chhupa do: (1) `clamp`, (2) popcount wala loop, (3) struct array pe field sum,
+(4) dense `switch` (8+ cases), (5) ek virtual call. Sirf `objdump -d -M intel` padh ke yeh
+nikaalo:
+- struct ka `sizeof` aur field offsets (file 05 — addressing modes se)
+- loop kitni baar chalta hai — formula
+- kaunsa branch `cmov` ban gaya, kaunsa jump table (file 08)
+- virtual call ka vtable slot index (file 08, folder 25)
+
+Aakhir mein source se milao — kahan galat andaaza lagaya, aur kyun?
+
+### Challenge 2 — optimization levels ka zoo
+Ek hi function (array pe `sum += a[i] * b[i]`) ko `-O0`, `-O1`, `-O2`, `-O3`, aur
+`-O3 -march=native` pe compile karo. Table banao: instructions ki ginti, branches, stack
+spills, aur vectorized hai ya nahi (packed `ps`/`pd` suffix, `ymm`/`zmm` register — file 09).
+Har do levels ke beech **ek line** mein batao ki kya badla aur kyun.
+
+### Challenge 3 — calibrated `rdtsc` timer
+`examples/05_rdtsc.cpp` se aage badho: `rdtscp` pe ek chhota timer banao jo startup pe TSC ko
+`steady_clock` ke against ns mein calibrate kare (file 11). Naapo:
+1. Timer ka apna overhead (khali start/stop ka ns) — best, p50, p99.
+2. `cpuid` se serialize karne ki kimat vs bina serialize.
+3. `steady_clock::now()` ka overhead isi machine pe.
+
+Batao kab `rdtsc` sahi tool hai aur kab `clock_gettime`/`steady_clock` (core hopping,
+invariant TSC flag).
+
+---
+
 ## Interview questions (folder-wide)
 
 1. Three reasons to read assembly; what you do NOT need to know.

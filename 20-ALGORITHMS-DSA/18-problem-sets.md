@@ -304,5 +304,31 @@ no `malloc`. Folder 19 files 23–24; folder 36.
 
 ---
 
+## Challenge
+
+Open-ended — answer key nahi. Upar ke problems ka "sahi answer" hota hai; yahan ka answer
+**aapka measurement** hai. Har number `-O2`, best-of-N, machine ke naam ke saath.
+
+### Challenge 1 — apna open-addressing hash map vs `std::unordered_map`
+Linear probing, power-of-2 capacity, tombstones ke saath delete (`examples/04_hash_table.cpp`
+se shuru karo). Load factor 0.5, 0.7, 0.9 pe **hit** aur **miss** lookup ka p50 / p99 per op
+naapo, `std::unordered_map` ke against. Table banao, aur batao: kis load factor pe aapka map
+achanak slow hua (probe length ka "cliff"), aur miss lookups hit se itne alag kyun hain?
+
+### Challenge 2 — order book price levels: kaunsa data structure?
+Synthetic stream: 90% updates best price ke 5 ticks ke andar, 10% door. Char structures pe
+chalao: `std::map`, sorted `std::vector`, `std::flat_map` (folder 22 file 15), aur tick-indexed
+flat array (file 17, `examples/08_flat_vs_pointer.cpp` ki soch). Per-op p50 / p99.9 aur
+memory. Phir access pattern badlo (updates poore range mein barabar faile hue) aur dobara
+naapo. Kaunsa structure kis pattern pe jeeta? (Folder 39 isi sawaal ko poori tarah hal karta hai.)
+
+### Challenge 3 — stream pe top-K symbols
+10M trade events, symbols Zipf distribution se. Do tareeke: (a) exact — `unordered_map`
+counting + end mein top-K, (b) approximate — count-min sketch + size-K min-heap. Memory vs
+accuracy (kitne top-K sahi pakde) ki table banao, sketch ke 3 alag sizes ke saath. Kab
+approximate answer "kaafi achha" hai, aur kab nahi?
+
+---
+
 ## Next
 → [`../21-TEMPLATES/00-README.md`](../21-TEMPLATES/00-README.md)

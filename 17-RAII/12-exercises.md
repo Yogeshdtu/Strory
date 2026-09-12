@@ -115,6 +115,74 @@ std::cout << (bool)w.lock() << " " << w.expired();
 
 ---
 
+## PART B2 — What happens next?
+
+Yahan sawaal ek khaas pal ka hai — **`}` pe, ya exception ke waqt, AGLA kaunsa constructor /
+destructor chalega?** Pehle order likho, phir chalao. Neeche ke jawab GCC 16.2 pe is class
+ke saath chala ke liye gaye hain:
+
+```cpp
+struct Logger {
+    std::string n;
+    explicit Logger(std::string s) : n(std::move(s)) { std::cout << "+" << n << " "; }
+    ~Logger() { std::cout << "~" << n << " "; }
+};
+```
+
+### N1
+```cpp
+{
+    Logger a("A");
+    Logger b("B");
+    std::cout << "| ";
+}                             // <- ab kaunsa destructor pehle?
+```
+<details><summary>Answer</summary>
+
+`+A +B | ~B ~A` — destructors construction ke **ulte order** mein chalte hain. `b` baad mein
+bana tha, isliye pehle marta hai. Isi wajah se RAII mein "jo baad mein acquire hua, woh pehle
+release" apne aap hota hai (file 02) — jaise pehle lock, phir file: pehle file band, phir unlock.
+</details>
+
+### N2
+```cpp
+struct Two {
+    Logger x{"X"};
+    Logger y{"Y"};
+    Two()  { std::cout << "[Two body] "; throw 1; }   // <- body mein exception
+    ~Two() { std::cout << "~Two "; }
+};
+try { Two t; } catch (int) { std::cout << "caught"; }
+```
+<details><summary>Answer</summary>
+
+`+X +Y [Two body] ~Y ~X caught` — `~Two` **kabhi nahi chala**. Constructor poora nahi hua, to
+`Two` object bana hi nahi (file 02), isliye uska destructor nahi chalta. Par jo **members**
+poore ban chuke the (`x`, `y`), unke destructors ulte order mein chal gaye. Yahi wajah hai ki
+resources ko members (RAII objects) mein rakhte hain, constructor body mein raw `new` karke
+nahi — raw pointer ka koi destructor nahi hota, leak ho jaata. (Stack unwinding ki poori detail:
+folder 23 file 04.)
+</details>
+
+### N3
+```cpp
+{
+    auto p = std::make_unique<Logger>("P");
+    std::cout << "| ";
+    p = std::make_unique<Logger>("Q");   // <- P pehle marega ya Q pehle banega?
+    std::cout << "| ";
+}
+```
+<details><summary>Answer</summary>
+
+`+P | +Q ~P | ~Q` — assignment ka **right side pehle poora evaluate** hota hai, isliye `Q`
+pehle bana. Phir `unique_ptr` ne purana `P` delete kiya aur `Q` ko pakad liya. Scope ke end
+pe `Q` gaya. Matlab replace karte waqt ek pal ke liye dono objects zinda the — bade objects
+ke saath yeh memory peak ka kaaran ban sakta hai.
+</details>
+
+---
+
 ## PART C — Find the bug
 
 ### C1

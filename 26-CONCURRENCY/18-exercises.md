@@ -102,6 +102,63 @@ cleanup. That's the `jthread` + `stop_token` win over `std::thread`.
 
 ---
 
+## Part A2 — What happens next?
+
+Threads ka order aam taur pe **fixed nahi** hota — isliye yahan sirf woh sawaal hain jinka
+jawab **lifetime rules** se tay hota hai (sleep sirf order ko saaf dikhane ke liye hai).
+Jawab GCC 16.2 (MinGW) pe chala ke liye gaye hain.
+
+### N1
+```cpp
+{
+    std::jthread t([] {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::cout << "worker-done ";
+    });
+    std::cout << "scope-end ";
+}                             // <- yahan `t` ka destructor chala. Kya hoga?
+std::cout << "after-scope\n";
+```
+<details><summary>Answer</summary>
+
+`scope-end worker-done after-scope` — `std::jthread` ka destructor thread ko **join** karta
+hai (file 03). Isliye `}` pe main thread worker ke khatam hone tak ruka, aur `after-scope`
+sabse baad mein aaya. `scope-end` pehle aaya kyunki worker 100 ms so raha tha.
+</details>
+
+### N2
+```cpp
+std::async(std::launch::async, [] {
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    std::cout << "task ";
+});                           // <- returned future ko kisi variable mein nahi rakha
+std::cout << "after ";
+```
+<details><summary>Answer</summary>
+
+`task after` — aur `after` print hone mein ~200 ms lage (humne time naapa). `std::async` jo
+`future` lautata hai woh ek temporary tha, jo statement ke end pe hi mar gaya — aur
+`async` policy wale future ka destructor task ke **khatam hone tak block** karta hai (file 12).
+Matlab "background task" background mein chala hi nahi. GCC ne compile time pe warning bhi
+di: `ignoring return value of ... declared with attribute 'nodiscard'`.
+</details>
+
+### N3
+```cpp
+{
+    std::thread t([] { std::this_thread::sleep_for(std::chrono::milliseconds(50)); });
+}                             // <- na join, na detach. `}` pe kya hoga?
+```
+<details><summary>Answer</summary>
+
+Program **turant khatam** — `std::terminate` call hota hai. Is box pe message aaya:
+`terminate called without an active exception`. Joinable `std::thread` ka destructor
+terminate karta hai (file 03) — kyunki chupchaap join karna (atak jaana) ya chupchaap detach
+karna (dangling access), dono galat ho sakte hain. Fix: `t.join()`, ya `std::jthread`.
+</details>
+
+---
+
 ## Part B — Find the bug
 
 ### B1

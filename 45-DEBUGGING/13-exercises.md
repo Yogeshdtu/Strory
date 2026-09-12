@@ -281,6 +281,37 @@ Fix: RAII — nodes hold `std::unique_ptr<Node>` children, root is a
 
 ---
 
+## Challenge
+
+Open-ended — answer key nahi. Har investigation ka **transcript** likho:
+hypothesis → command → observation → nateeja. Code tab tak mat badlo jab tak root cause pakka na ho.
+
+### Challenge 1 — bina `printf` ke teen bugs
+`examples/06_buggy_programs/` mein se koi teen chuno jo aapne Part A mein **nahi** kiye the.
+Sirf gdb (file 02–03) aur sanitizers (file 06) se root cause dhoondho — ek bhi print
+statement nahi. Har bug ke liye: sabse pehla command kaunsa chalaya aur kyun, kaunsi
+observation ne hypothesis badli, aur woh tool jo **sabse jaldi** pakad leta (file 12 ka
+symptom → tool table use karke).
+
+### Challenge 2 — Heisenbug ko pakdo
+`examples/06_buggy_programs/10_data_race.cpp` `-O0` pe kabhi-kabhi "INCONSISTENT" deta hai,
+par `-O2` pe aksar chhup jaata hai (register promotion). Apne compiler pe:
+1. `-O0` aur `-O2` dono pe 100 runs — kitne inconsistent? (asli ginti likho)
+2. Race ko `-O2` pe bhi **reproducible** banao — stress (zyada threads/iterations), thread
+   pinning, ya jo bhi kaam kare. Kaunsi technique chali aur kyun?
+3. TSan (Linux) report paste karo aur batao report ki kaunsi line ne dono conflicting
+   accesses dikhaye.
+
+### Challenge 3 — optimized crash ka postmortem
+`examples/02_segfault_debug.cpp` ko `-O2 -g` se build karo aur crash karao. Linux pe core dump
+se (file 04), ya Windows pe gdb ke andar crash pakad ke:
+- `bt`, `frame`, `info locals` — kaunse values `<optimized out>` hain aur kyun (file 05)?
+- `disassemble` se faulting instruction dhoondho aur `info registers` se faulting address
+  nikaalo — source ki kis line ka kaunsa pointer tha?
+- Wahi crash `-Og` pe dobara karo: debugging kitni aasaan hui, aur kya bug chhup gaya?
+
+---
+
 ## Self-check
 
 Tum ready ho jab bina dekhe:

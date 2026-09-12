@@ -4,6 +4,60 @@ Yeh repo batches mein banaya ja raha hai. Yahan track hota hai kya ban chuka hai
 
 ---
 
+## Gap-fix pass (post-PHASE 34) — part 1: content gaps — ✅ COMPLETE
+
+**Kyun:** original spec ke against ek independent audit (audit files ki "NONE" pe
+bharosa kiye bina) ne 7 gaps nikaale. Topics lagbhag sab covered the; gaps delivery
+(Hinglish) aur kuch chhoti content holes mein the. Yeh part content gaps band karta hai.
+
+**Toolchain change:** MinGW GCC 15.1 → **GCC 16.2** (GDB 17.2). Poora repo 16.2 pe
+dobara verify kiya (neeche numbers). Purane lessons ke measured numbers "GCC 15.1"
+label ke saath valid rehte hain.
+
+**Kya kiya:**
+- **Build:** `*.cpp23.cpp` naming convention — `build.ps1` aur `Makefile` aisi files ko
+  apne aap `-std=c++23 -lstdc++exp` se build karte hain (`-lstdc++exp` MinGW pe
+  `std::print` ke liye zaroori — measured link error). `checkall` ab `build/` (CMake
+  output) skip karta hai.
+- **C++23 (gap: survey-only, compile-verification deferred):**
+  `22-MODERN-CPP/15-cpp23-in-practice.md` + `examples/09_cpp23_in_practice.cpp23.cpp` +
+  `examples/10_cpp23_what_happens_next.cpp23.cpp`. 26 C++23 features probe kiye
+  (GCC 16.2: 24 direct, `import std;` setup ke saath, `std::stacktrace` is build mein
+  nahi). **Rule 2:** `flat_map` vs `map` measured — 55 keys pe map tez (0.91–0.93×),
+  232k keys pe flat ~5×, random insert ~22× slow; `import std;` ~1.7× per file par
+  7.8 s one-time module build. `import std;` ke baad `#include` = redefinition errors
+  (verified trap). `15-exercises` → `16-exercises`; `05` survey ka "flat_map tez" claim theek kiya.
+- **Namespaces (gap: audit `[✓]` sirf cheatsheet + linkage lesson pe tha):**
+  `08-FUNCTIONS/14-namespaces.md` + `examples/08_namespaces.cpp` — apne namespaces,
+  nested, alias, using-declaration vs directive, anonymous (`nm` se internal linkage
+  dikhaya), inline (ABI versioning), ADL. `14-exercises` → `15-exercises` (+ namespace
+  questions). `08/08` ka "ADL — folder 24" pointer theek (folder 24 ADL padhata hi nahi tha).
+- **Challenge sections (gap: 7 exercises files mein nahi the):** 21, 22, 34, 35, 36,
+  37, 45 + `20/18-problem-sets.md` — har folder mein 2–3 open-ended, measure-karo challenges.
+- **"What happens next?" format (gap: 0 files):** `07`, `17`, `18`, `26` exercises
+  mein naya part + `08/14` + `22/15` — saare jawab GCC 16.2 pe chala ke (vector growth
+  pe throwing move → COPY, discarded `std::async` future ~200 ms block, joinable
+  `std::thread` → terminate, etc.).
+- **C++26 (gap: silently absent):** `WHAT-I-STILL-NEED-TO-LEARN.md` SPECIALIZED mein
+  explicit row — GCC 16.2 probe: reflection (`-freflection`), contracts (`-fcontracts`),
+  `#embed`, `inplace_vector`, pack indexing chalte hain; `hive`, `<hazard_pointer>`,
+  `<rcu>`, `std::execution` is library build mein nahi.
+- **Audits:** `CPP-COMPLETENESS-AUDIT.md` ke aakhri 2 `[~]` → `[✓]`, naya C++23 library
+  row, namespaces row ab `08/14` cite karta hai; score table rows se recount kiya
+  (purana table stale tha: 230 ✓ / 0 ~ / 0 ☐).
+- **Pehle ki fixes (isi pass mein):** capstone `44/14` ka p99.9 regression explain +
+  measured bitmap fix (extension); 3 `## Next` headings; stray `-p` dir.
+
+**Repo state (GCC 16.2):** `./build.ps1 checkall` → **381 `.cpp` scanned, 353 OK,
+0 real fail, 1 expected (`broken_on_purpose`), 27 skipped (`*.linux.cpp`)**. Links: 0 broken.
+
+**Agla — part 2:** Hinglish pass (lesson prose + code comments), folder by folder.
+Audit mein `09`–`12`, `16`–`22`, `24`–`28`, `30`–`36`, `44`, `46`–`49` ki prose aur
+`18`–`22`, `28`, `41`, `46`, `47`, `49` ke code comments English-heavy mile.
+`12-POINTERS` prose ho chuka hai.
+
+---
+
 ## Batch 11 (part 6) — ✅ COMPLETE (PHASE 34) — the final gap audit — 🏁 COURSE STRUCTURALLY COMPLETE
 
 **Kaam:** `WHAT-I-STILL-NEED-TO-LEARN.md` ke har section ko "NONE" pe le jaana,

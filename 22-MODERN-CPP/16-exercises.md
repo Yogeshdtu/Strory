@@ -281,5 +281,42 @@ for (size_t i = 1; i < orders.size(); ++i)
 
 ---
 
+## Challenge
+
+Open-ended — koi answer key nahi. Har stage ke baad **same output** hona chahiye; jo naapo
+wahi likho, chahe modern version slow nikle (Rule 2).
+
+### Challenge 1 — C++03 order router → C++23, stage by stage
+~200 lines ka ek **purane style** ka program likho: order lines parse karna, symbol-wise
+aggregate karna, report print karna — raw `for` loops, functor structs, owning raw pointers,
+`printf`, `NULL`, manual `std::map` find/insert (bilkul `examples/08_legacy_to_modern.cpp`
+ke `namespace legacy` jaisa, par bada). Phir chaar stages mein modernize karo:
+1. **C++11/14:** `auto`, range-for, lambdas, `unique_ptr`, `nullptr`
+2. **C++17:** structured bindings, `std::optional`, `string_view`, `if`-with-initializer
+3. **C++20:** ranges pipelines, concepts, `<=>`, `std::format`, designated initializers
+4. **C++23:** `std::print`, `ranges::to`, `views::enumerate`, deducing `this`, `std::expected`
+   (file 15; `*.cpp23.cpp` naam do)
+
+Har stage ke baad: (a) golden output file se **byte-for-byte** compare, (b) `-O2` pe runtime
+(best of 5), (c) binary size, (d) lines of code. Ek table banao aur har row ke saath ek line:
+"is stage mein kya badla, aur kya kuch slow/bada hua?"
+
+### Challenge 2 — lazy tick replay aur allocations ginna
+`std::generator<Tick>` (file 15) se ek CSV ke 1M ticks replay karo; `views::filter` se sirf
+ek symbol; `views::chunk(1000)` se batches; har batch ka VWAP `std::print` karo. Phir:
+- Global `operator new` ko ek counter ke saath replace karo (folder 14 file 05 wali
+  "counted `operator new`" technique) aur gino **kitne allocations** hue — generator frame kitne?
+- Wahi pipeline plain `for` loop se likho, `-O2` pe ns/tick compare karo.
+- Jo aaya wahi likho: ranges + generator ki "ergonomics" ki kimat is workload pe kitni hai?
+
+### Challenge 3 — modules ka break-even point apni machine pe
+Ek 3-header chhoti library (`price.hpp`, `book.hpp`, `util.hpp`) ko ek named module mein
+badlo (file 10), aur consumers mein `import std;` use karo (file 15 section 10 ka setup).
+1, 5, aur 20 translation units ke saath **clean build time** naapo — headers vs modules.
+Lesson 15 mein ek file pe ~1.7× aur ~5 files pe break-even aaya tha; aapki machine pe kitne
+TUs pe modules jeete? Jo mile, wahi likho.
+
+---
+
 ## Next
 → [`../23-ERROR-HANDLING/00-README.md`](../23-ERROR-HANDLING/00-README.md)

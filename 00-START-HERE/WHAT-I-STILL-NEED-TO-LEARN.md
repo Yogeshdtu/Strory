@@ -9,7 +9,7 @@ Last updated: **Batch 11 part 5 COMPLETE. PHASE 33: folder 49 (PROJECTS) — eve
 
 ---
 
-## Abhi ki status (PHASE 0–34 complete — **COURSE STRUCTURALLY COMPLETE**. All 50 content folders (00–49) built; 378 `.cpp` compile-clean under `./build.ps1 checkall`; the final gap audit (PHASE 34) is done — every section below reads NONE, every genuinely-specialist topic is in the explicit SPECIALIZED list.)
+## Abhi ki status (PHASE 0–34 complete — **COURSE STRUCTURALLY COMPLETE**. All 50 content folders (00–49) built; 381 `.cpp` under `./build.ps1 checkall` on GCC 16.2 (353 OK, 0 real fail, 1 broken-on-purpose, 27 Linux-only); the final gap audit (PHASE 34) is done — every section below reads NONE, every genuinely-specialist topic is in the explicit SPECIALIZED list.)
 
 ### MAJOR C++ LANGUAGE GAPS
 
@@ -2249,7 +2249,8 @@ explicitly list kar raha hoon:
 
 | Topic | Kyun bahar | Kahan tak cover hoga |
 |---|---|---|
-| **C++23-only library types compile-verified** (`std::generator`, `std::flat_map`, `std::mdspan`, deducing `this`) | Repo default is `-std=c++20` — a deliberate toolchain choice (C++23 stdlib support is still uneven across compilers/distros). The *language* concepts are not the boundary; the *compile step* is. | Fully **explained lesson-level** in folder 22 (04 C++20/23 feature audit, 05 deducing `this`, 09 coroutines/`Generator<T>`); a hand-rolled `flat_map` is built in `47`. **`std::expected` is the exception — compile-verified both ways** (`23/examples/05`). Flip `STD=c++23` on a supporting toolchain and the discussed types compile as described. |
+| **`std::stacktrace` (C++23)** | Is repo ke MinGW GCC 16.2 build mein `<stacktrace>` header hai par `__cpp_lib_stacktrace` define nahi (library backtrace support ke bina bani) — compile-verify nahi ho sakta. Baaki C++23 ab boundary nahi raha. | Concept + feature-test pattern `22/15` mein; stack traces ke liye gdb/sanitizers (folder 45). **Baaki C++23 compile-verified hai** — `22/15` + `*.cpp23.cpp` examples: deducing `this`, `std::generator`, `flat_map` (measured), `mdspan`, `move_only_function`, `std::print`, ranges additions, `import std;` (setup + measured). |
+| **C++26** (reflection, contracts, `std::execution` senders/receivers, `std::hive`, `<hazard_pointer>`, `<rcu>`, `std::simd`, `inplace_vector`, `#embed`, pack indexing) | Naya standard (2026); compiler + library support abhi adhoora aur badal raha hai. GCC 16.2 pe probe kiya: **chalte hain** — pack indexing, `_` placeholder, `= delete("reason")`, `#embed`, `std::inplace_vector`, `<debugging>`, static reflection (`-freflection`), contracts (`-fcontracts`); **is library build mein nahi** — `std::hive`, `<hazard_pointer>`, `<rcu>`, `std::execution::just`. Course ka core C++20 hai, C++23 deepening ke saath. | Concept level only. Jo ideas pehle se padhaye gaye hain unke standard versions: hazard pointers + RCU = folder 28 ki techniques; `inplace_vector` = fixed-capacity no-alloc containers (folder 36); `std::execution` = folder 26/41 ke thread pools/pipelines. Toolchain mature hone pe `22/15` ki tarah probe + compile-verified lesson. |
 | **FPGA / Verilog / HLS** | Hardware design ek alag career hai | Folder 42 mein sirf "yeh kya hai aur kab use hota hai" |
 | **Full DPDK application development** | DPDK apne aap mein ek badi library hai | Folder 30/42 mein concepts + minimal example |
 | **RDMA / InfiniBand programming** | Specialized, mostly HPC | Folder 30 mein concept level |
@@ -2297,10 +2298,10 @@ Aur ab yeh dikhta hai:
 NONE
 
 ### MAJOR STANDARD LIBRARY GAPS
-NONE   (C++23-only stdlib types -> SPECIALIZED, deliberate c++20 scope)
+NONE   (C++23 compile-verified in 22/15; std::stacktrace [absent in this build] + C++26 -> SPECIALIZED)
 
 ### MAJOR MODERN C++ GAPS
-NONE   (same)
+NONE   (C++23 verified in 22/15; C++26 -> SPECIALIZED)
 
 ### MAJOR SYSTEMS C++ GAPS
 NONE
@@ -2309,8 +2310,8 @@ NONE
 NONE
 ```
 
-**Course ab structurally complete hai** — 50 content folders (00–49), 378
-`.cpp` files compile-clean under `./build.ps1 checkall`, har genuinely-specialist
+**Course ab structurally complete hai** — 50 content folders (00–49), 381
+`.cpp` files under `./build.ps1 checkall` on GCC 16.2 (353 OK, 0 real fail), har genuinely-specialist
 topic explicitly SPECIALIZED list mein. Lekin yaad rakhna: **file complete hona
 aur aapka seekhna complete hona — alag cheezein hain.** Content likha hona kaafi
 nahi, aapko woh code likhna, chalana, todna aur samajhna padega.

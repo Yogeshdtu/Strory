@@ -272,5 +272,42 @@ constexpr (Reservable<C>) c.reserve(n); }`
 
 ---
 
+## Challenge
+
+Yeh open-ended projects hain — inka koi "answer key" nahi. Jo naapo, wahi likho
+(Rule 2); jo compile error aaye, uska asli text paste karo.
+
+### Challenge 1 — `Price<Scale>`: zero-cost fixed-point type
+Ek `template <std::int64_t Scale> struct Price { std::int64_t ticks; };` banao
+(non-type template parameter, file 04):
+- `+`, `-`, `<=>` sirf **same `Scale`** ke beech chalein. `Price<100>{} + Price<10000>{}`
+  compile hi na ho — ek `concept SameScale` se (file 10).
+- `double` mein conversion sirf explicit function se (`to_double()`), implicit nahi.
+- `std::formatter<Price<Scale>>` specialization jo `12345` ticks + `Scale=100` ko `123.45`
+  print kare (folder 22 file 13).
+- `static_assert` se compile-time tests (file 13).
+
+**Zero-cost prove karo:** `Price<100>` ke 1M elements ka sum aur raw `std::int64_t` ka sum
+`-O2 -S` se compile karo. Dono ka assembly compare karo (`diff`). Same aaya to "zero-cost"
+ka saboot hai; alag aaya to kya alag hai aur kyun — woh likho.
+
+### Challenge 2 — compile-time message dispatcher vs `virtual`
+3 message types (`Add`, `Cancel`, `Trade`) — har ek ek struct. Ek variadic
+`Dispatcher<Handlers...>` banao (file 06) jo message ke type-byte se constexpr-built table
+ke through sahi handler call kare (file 12, 13). Phir:
+1. Wahi kaam `virtual` base class se likho.
+2. 4M messages ka ns/msg `-O2` pe dono ka naapo — `36-LOW-LATENCY-CPP/examples/07_dispatch_comparison.cpp`
+   ka method follow karo (HOMO aur HETERO data dono).
+3. **Bloat naapo (file 15):** 3 message types vs 30 message types — binary size (`size` /
+   file size) aur compile time. Templates ki kimat kahan dikhi?
+
+### Challenge 3 — SFINAE vs concepts: error message ki ladai
+`SpscQueue<T, N>` jiska `N` power of 2 hona chahiye aur `T` `std::semiregular`. Do versions:
+`std::enable_if` (file 09) aur `requires` (file 10). Dono ko jaan-boojh kar galat use karo
+(`N = 100`, aur ek non-copyable `T`). Dono error messages poore paste karo, lines gino, aur
+batao ek naye teammate ke liye kaunsa samajhna aasaan hai — aur kyun.
+
+---
+
 ## Next
 → [`../22-MODERN-CPP/00-README.md`](../22-MODERN-CPP/00-README.md)

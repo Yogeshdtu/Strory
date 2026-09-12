@@ -170,6 +170,39 @@ milega) — 07 ke examples isi liye 180 (< 425) use karte hain.
 
 ---
 
+## Challenge
+
+Open-ended — answer key nahi. Yeh folder concepts ka hai, isliye challenges bhi **sahi
+samajh** pe hain, optimization pe nahi. Speed folders 39–44 mein aayegi.
+
+### Challenge 1 — ek file mein chhota exchange
+`examples/04_matching_rules.cpp` ko aage badhao: price-time priority matcher (file 07) jo
+limit, market, aur IOC orders (file 04) le aur trade prints nikaale. Har event ke baad
+invariants check karo (`assert`):
+- book kabhi crossed nahi (best bid < best ask)
+- quantity conserve hoti hai (incoming = filled + resting + cancelled)
+- same price pe pehle aaya order pehle fill hota hai
+
+20 haath se likhe scenarios ka test file banao (jaise "market order jo 3 levels sweep kare",
+"IOC jo partially fill ho"). Folder 39/40 isi ko tez banayenge — yahan sirf **sahi** banao.
+
+### Challenge 2 — latency budget, har number ke saboot ke saath
+Do paths ka tick-to-trade budget table banao (file 14): (a) colocated NSE F&O strategy,
+(b) ek retail broker API se trade karne wala app. Har stage ka number ya to kisi lesson se
+cite karo (jaise `42/14`, `36/17`) ya `examples/03_latency_budget.cpp` jaisa kuch chala ke
+naapo. Jahan number sirf andaaza hai, "andaaza" likho. Batao: har path mein sabse bada slice
+kaunsa hai jo **aapke control** mein hai?
+
+### Challenge 3 — market-making simulator aur adverse selection
+Random-walk mid-price. Aapka market maker bid/ask quote kare: spread `s`, size `q`.
+Fill probability quote ki mid se doori ke saath kam ho. Track: inventory, realized +
+unrealized P&L, max position. `s` ko 5 values pe badal ke table banao: P&L vs spread vs
+inventory risk (file 09, 13). Phir ek "informed trader" jodo jo agle move ki disha jaanta ho —
+dikhao ki aapka MM uske khilaf kaise paisa khota hai (adverse selection), aur kaunsa risk
+limit (file 13) nuksaan ko rokta hai.
+
+---
+
 ## Folder-wide interview questions
 
 1. HFT ko algo trading se differentiate karo.

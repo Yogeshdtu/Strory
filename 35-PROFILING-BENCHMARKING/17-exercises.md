@@ -414,6 +414,43 @@ it?
 
 ---
 
+## Challenge
+
+Open-ended — answer key nahi. Har number ke saath machine, compiler, flags aur sample count likho.
+
+### Challenge 1 — benchmark "jhooth pakadne wali" machine
+`examples/04_benchmark_mistakes.cpp` se prerna lo. 5 **jaan-boojh kar jhoothe** benchmarks
+likho:
+1. result use hi nahi hua → compiler ne loop hata diya (dead code elimination)
+2. warmup nahi → pehli iterations cold cache / page faults
+3. loop ke andar RNG ya `%` ki cost chhupi hui (Rule 2 wali purani galti)
+4. p99.9 claim sirf 1,000 samples pe (file 04: kitne samples chahiye?)
+5. `-O0` pe naapa
+
+Phir ek harness likho jo har jhooth ko **khud pakde** — jaise: `-O0` vs `-O2` ratio check,
+sample count vs percentile rule, pehle 10% samples ka trend (warmup), result ka
+`DoNotOptimize`-style sink hai ya nahi. Report: kaunsa jhooth automatically pakda gaya,
+kaunsa sirf insaan pakad sakta hai.
+
+### Challenge 2 — latency recorder jo khud latency na bane
+`examples/08_latency_recorder.cpp` ko badhao:
+- per-thread log-linear histogram (file 07), SPSC ring se reporter thread ko hand-off (file 16)
+- p50 / p99 / p99.9 / p99.99 / max report
+- **recorder ka apna overhead naapo** (record call ke ns) — yeh number doosre numbers ko kitna
+  bigaadta hai?
+- **Coordinated omission dikhao** (file 05, 16): ek closed-loop load generator (pichla request
+  khatam → agla bhejo) aur ek open-loop (fixed schedule pe bhejo). Ek hi slow-down inject
+  karo; dono ke p99.9 mein kitna fark aaya?
+
+### Challenge 3 — ek poori perf investigation, ek page mein
+Ek slow program lo (jaise folder 32 ka row-vs-column traversal, ya apna koi code). Linux pe
+file 10–12 ka poora workflow: `perf stat` → hypothesis → `perf record` → flame graph → **ek**
+change → re-measure. Ek page ki report: pehla number, hypothesis, saboot (counter / flame
+graph ka tukda), change, naya number, aur agar change ne kaam nahi kiya to woh bhi. Linux na
+ho to jo tools is machine pe hain unse karo aur saaf likho ki kya naap nahi paaye.
+
+---
+
 ## Interview questions (folder-wide)
 
 1. Measure-don't-guess; Amdahl; premature optimization ka asli matlab.

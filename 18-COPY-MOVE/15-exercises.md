@@ -120,6 +120,82 @@ int main() {
 
 ---
 
+## PART B2 — What happens next?
+
+Sawaal: **is line pe kaunse special members (ctor / COPY / MOVE / dtor) chalenge, kis order
+mein?** Jawab GCC 16.2 (libstdc++) pe in do classes ke saath chala ke liye gaye hain:
+
+```cpp
+struct TrN {   // move constructor noexcept HAI
+    std::string n;
+    explicit TrN(std::string s) : n(std::move(s)) { std::cout << "ctor(" << n << ") "; }
+    TrN(const TrN& o) : n(o.n)                    { std::cout << "COPY(" << n << ") "; }
+    TrN(TrN&& o) noexcept : n(std::move(o.n))     { std::cout << "MOVE(" << n << ") "; }
+    ~TrN() { std::cout << "dtor(" << (n.empty() ? "-" : n) << ") "; }   // "-" = moved-from
+};
+struct TrT { /* bilkul TrN jaisa, bas move constructor par `noexcept` NAHI */ };
+```
+
+### N1
+```cpp
+std::vector<TrN> v;
+v.reserve(2);
+v.push_back(TrN{"a"});        // <- yahan kya-kya chalega?
+```
+<details><summary>Answer</summary>
+
+`ctor(a) MOVE(a) dtor(-)` — pehle temporary `TrN{"a"}` bana, phir vector ke andar **move**
+hua, phir khaali (moved-from) temporary mar gaya. (Is box pe moved-from string khaali mili;
+standard sirf "valid but unspecified" guarantee karta hai.) Scope end pe vector wala `dtor(a)`.
+</details>
+
+### N2
+```cpp
+std::vector<TrN> v;
+v.reserve(2);
+v.emplace_back("a");          // <- ab?
+```
+<details><summary>Answer</summary>
+
+`ctor(a)` — bas. `emplace_back` argument (`"a"`) seedha vector ki memory mein object banane
+ke liye use karta hai. Na temporary, na move, na extra destructor.
+</details>
+
+### N3
+```cpp
+std::vector<TrN> v;           // reserve NAHI kiya
+v.push_back(TrN{"a"});
+v.push_back(TrN{"b"});        // <- capacity khatam. Ab kya chalega, kis order mein?
+```
+<details><summary>Answer</summary>
+
+Doosre `push_back` pe: `ctor(b) MOVE(b) MOVE(a) dtor(-) dtor(-)`.
+1. temporary `b` bana
+2. vector ne naya bada buffer liya aur **pehle naya element** `b` usme move kiya
+3. phir purana `a` naye buffer mein **MOVE** hua (relocation)
+4. purane buffer ka khaali `a` aur khaali temporary `b` mare
+
+`a` move hua kyunki `TrN` ka move constructor `noexcept` hai.
+</details>
+
+### N4
+```cpp
+std::vector<TrT> v;           // TrT: move constructor noexcept NAHI hai
+v.push_back(TrT{"a"});
+v.push_back(TrT{"b"});        // <- relocation mein a MOVE hoga ya COPY?
+```
+<details><summary>Answer</summary>
+
+`ctor(b) MOVE(b) COPY(a) dtor(a) dtor(-)` — purana `a` ab **COPY** hua, move nahi! Vector
+"strong exception guarantee" deta hai: agar relocation beech mein fail ho to purana buffer
+salamat rehna chahiye. Move beech mein throw kar sakta hai (noexcept nahi hai) aur purane
+objects ko khaali chhod sakta hai — isliye vector `std::move_if_noexcept` se copy chunta hai.
+Naya element `b` tab bhi move hua, kyunki woh relocation nahi, argument se bana. Sabak (file 06):
+**move constructor ko `noexcept` banao**, warna har growth pe copies (aur slow code).
+</details>
+
+---
+
 ## PART C — Find the bug
 
 ### C1

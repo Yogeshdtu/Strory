@@ -384,22 +384,22 @@ std::map  (231,845 keys)                      std::flat_map (231,845 keys)
    cache line; ~18 levels gehra
 ```
 
-### Naap (MinGW GCC 15.1, `-O2`, best of 5, 3 alag runs ka range)
+### Naap (MinGW GCC 16.2, `-O2`, best of 5, 3 alag runs ka range)
 
 Lookup — 2,000,000 random `find()`, keys pehle se bani hui (sirf lookup time naapa):
 
 | Keys | `std::map` | `std::flat_map` | flat kitna tez |
 |---|---|---|---|
-| **55** | 19.2–20.2 ns | 21.6–22.0 ns | **0.87–0.92×** — map TEZ hai |
-| **3,660** | 56.8–59.2 ns | 51.9–52.6 ns | 1.09–1.13× |
-| **231,845** | 552–588 ns | 110–114 ns | **5.03–5.17×** |
+| **55** | 19.0–19.2 ns | 20.7–20.9 ns | **0.91–0.93×** — map TEZ hai |
+| **3,660** | 55.8–56.2 ns | 48.7–48.8 ns | 1.14–1.15× |
+| **231,845** | 512–518 ns | 101–104 ns | **4.98–5.09×** |
 
 Insert — random order mein `emplace` (naya container har run):
 
 | Keys | `std::map` | `std::flat_map` | flat kitna slow |
 |---|---|---|---|
-| 1,000 | 122–128 ns | 125–149 ns | 0.98–1.19× |
-| **50,000** | 209–271 ns | 4,663–4,925 ns | **17–23×** slow |
+| 1,000 | 118–122 ns | 127–130 ns | 1.05–1.09× |
+| **50,000** | 203–211 ns | 4,542–4,610 ns | **~22×** slow (21.7–22.3×) |
 
 ### Isse kya seekha
 1. **Chhote size pe flat_map ka faayda gayab — map thoda tez nikla.** 55 keys ke map
@@ -411,7 +411,7 @@ Insert — random order mein `emplace` (naya container har run):
 2. **Bade size pe cache ka asar dikhta hai — 5× tak.** 231k nodes ≈ 11 MB bikhri memory
    hai; tree ke har level pe cache miss ka khatra. flat_map ke keys ~1.85 MB mein ek jagah
    hain.
-3. **Random insert bade size pe bahut mehnga hai — 17–23×.** Har insert beech mein jagah
+3. **Random insert bade size pe bahut mehnga hai — ~22×.** Har insert beech mein jagah
    banane ke liye average aadhe elements dono vectors mein khiskata hai.
 4. **"flat_map tez hai" poora sach nahi.** Sahi baat: *bade, read-mostly* data pe lookup
    tez hai; chhote data pe koi faayda nahi; random inserts pe bahut slow. Pehle naapo.
@@ -564,7 +564,7 @@ for (auto [p, q] : std::views::zip(px, qty)) { }   // ⚠️ sirf 2 baar chalega
 ### Trap 7 — flat_map mein loop ke andar random inserts
 ```cpp
 std::flat_map<std::int64_t, Level> book;
-for (auto& msg : feed) book.emplace(msg.px, ...);   // ⚠️ bade size pe har insert O(n) shift (17-23x slow naapa)
+for (auto& msg : feed) book.emplace(msg.px, ...);   // ⚠️ bade size pe har insert O(n) shift (~22x slow naapa)
 ```
 Bulk data: pehle vector mein bharo, sort karo, ek baar mein `flat_map` banao.
 
@@ -585,7 +585,7 @@ it->second = 1;           // UB
 | "`import std;` har file ko bahut tez compile karta hai" | Naapa: ~1.7× per file, par module banane ki one-time cost 7.8 s — ~5 files ke baad faayda |
 | "Deducing `this` bas `this` ka naya naam hai" | Object ek explicit parameter ban jaata hai → ek template saare const/ref cases sambhalta hai |
 | "`std::generator` coroutine ki cost khatam karta hai" | Sirf boilerplate hataata hai; frame allocation waisa hi |
-| "`std::flat_map` hamesha `std::map` se tez hai" | Naapa: 55 keys pe map tez, 3.6k pe ~1.1×, 231k pe ~5×; random insert 17–23× slow |
+| "`std::flat_map` hamesha `std::map` se tez hai" | Naapa: 55 keys pe map tez, 3.6k pe ~1.15×, 231k pe ~5×; random insert ~22× slow |
 | "`std::move_only_function` = `std::function` bina copy ke, isliye free" | Wahi type-erased indirect call hai; sirf copy ki shart hati |
 | "`std::print` hot path ke liye theek hai" | Formatting + I/O — tick path se bahar rakho |
 | "`g[1, 2]` C++20 mein bhi do-argument tha" | C++20 mein woh comma operator tha → `g[2]` |
@@ -634,8 +634,8 @@ it->second = 1;           // UB
 
    Yeh ek khula experiment hai — jawab aapka measurement hai, main pehle se nahi bataunga.
    Sahi design ke checklist: dono containers mein **same keys**, probes pehle se bane, `-O2`,
-   best-of-N, aur checksum match. Agar pair-vector bhi ~22 ns aaye, to hypothesis galat thi
-   (fark kahin aur hai — jaise binary search ka code); agar ~19–20 ns aaye, to alag vectors
+   best-of-N, aur checksum match. Agar pair-vector bhi ~21 ns aaye, to hypothesis galat thi
+   (fark kahin aur hai — jaise binary search ka code); agar ~19 ns aaye, to alag vectors
    wali wajah sahi thi. Dono result valid lessons hain — jo aaye wahi likho (Rule 2).
    </details>
 
@@ -647,7 +647,7 @@ it->second = 1;           // UB
    hatao), values bhi usi order mein banao, phir `std::flat_map<K,V> m(std::sorted_unique,
    std::move(keys), std::move(values));`. Total kaam O(n log n) sort + O(n) — har insert pe
    O(n) shift nahi. Asli speedup apni machine pe naapo; random-emplace wala 50k case is box
-   pe ~4.7–4.9 µs per insert tha.
+   pe ~4.5–4.6 µs per insert tha (GCC 16.2).
    </details>
 
 5. **Endianness:** bytes `{0x00, 0x01, 0x86, 0xA0}` ek big-endian `uint32_t` hain. Value kya

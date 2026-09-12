@@ -66,8 +66,15 @@ SPECIALIZED list mein hain.
   bank · 13 cheatsheets · 17 end-to-end projects)
 - **PHASE 34** — the final gap audit
 
-**Repo:** `./build.ps1 checkall` → **378 `.cpp` scanned, 350 OK, 0 real fail,
+**Toolchain:** MinGW-w64 **GCC 16.2** (GDB 17.2). Purane lessons ke measured numbers GCC 15.1
+pe liye gaye the aur usi label ke saath valid hain.
+
+**Repo:** `./build.ps1 checkall` → **381 `.cpp` scanned, 353 OK, 0 real fail,
 1 expected (`broken_on_purpose`), 27 skipped (`*.linux.cpp`)**. Mojibake: 0.
+
+**Gap-fix pass (post-PHASE 34):** part 1 (content gaps: C++23 `22/15`, namespaces `08/14`,
+Challenge sections, "What happens next?" format, C++26 SPECIALIZED row) ✅. **Part 2 — Hinglish
+pass (prose + code comments) chal raha hai**, folder by folder; detail `00-START-HERE/BUILD-STATUS.md`.
 
 **Ab kya:** ab yeh *maintenance / deepening* mode mein hai. Naye folders nahi
 banane. Jo aaye:
@@ -212,6 +219,12 @@ make folder DIR=06-CONDITIONS     # ek folder ke saare examples
 make checkall                     # poora repo
 make clean
 ```
+
+**File naming conventions jo build scripts samajhte hain:**
+- `NN_name.linux.cpp` — Linux-only syscalls; `folder`/`checkall` inhe skip karte hain.
+- `NN_name.cpp23.cpp` — C++23 example; har target apne aap `-std=c++23` aur (source ke baad)
+  `-lstdc++exp` lagata hai (MinGW pe `std::print` ke liye zaroori).
+- `*_broken_on_purpose.cpp` — jaan-boojh kar compile fail; `checkall` mein "expected".
 
 **Naya folder khatam karne ke baad hamesha `make folder DIR=...` chalao.**
 
