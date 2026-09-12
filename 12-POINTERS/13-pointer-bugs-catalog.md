@@ -170,7 +170,7 @@ mein likho** — `std::unique_ptr<Widget>` return matlab "caller maalik hai"; ra
 COMPILE:  -Wall -Wextra -Wshadow -Wnull-dereference -Wreturn-local-addr
           -Wdangling -Wuninitialized  (aur CI mein -Werror)
 RUNTIME:  -fsanitize=address,undefined   (Linux/Clang; MinGW pe nahi)
-          -D_GLIBCXX_ASSERTIONS  (kahin bhi; is course ke GCC pe default on)
+          -D_GLIBCXX_ASSERTIONS  (kahin bhi; GCC 16.2 pe sirf -O0 pe default on -- -O2 pe khud lagao)
           Valgrind gehri heap analysis ke liye
 DESIGN:   RAII -- std::vector / std::unique_ptr / std::string memory ke maalik
           Non-owning access -- references / std::span / std::string_view

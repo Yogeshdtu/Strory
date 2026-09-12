@@ -4,8 +4,9 @@
 // ============================================================
 //  COMPILE theek hota hai. Chalane pe:
 //    - RAW C-array OOB (BUG 1-3): MinGW pe SILENT (garbage / UB), Linux+ASan pe error.
-//    - STL container OOB (BUG 4): is toolchain pe `_GLIBCXX_ASSERTIONS` DEFAULT
-//      hai -> program yahan ABORT ho jaata hai ek clear assertion ke saath.
+//    - STL container OOB (BUG 4): GCC 16.2 pe `_GLIBCXX_ASSERTIONS` sirf `-O0` pe DEFAULT
+//      on hai -> debug build (`./build.ps1 <file>`) yahan ABORT karta hai clear assertion ke
+//      saath. `-O2` (`./build.ps1 fast`) pe macro OFF -> chupchaap UB, abort NAHI (chala ke dekha).
 //      (Isi liye BUG 4 sabse aakhri mein hai -- baaki bugs pehle dikh jaayein.)
 //
 //  PAKADNE KE TAREEKE:
@@ -15,7 +16,7 @@
 //     ⚠️ MinGW-w64 (yeh Windows toolchain) mein libasan NAHI -> link fail. WSL/Linux use karo.
 //
 //  B) libstdc++ hardened -- STL containers ke [] pe bounds-check (raw arrays pe NAHI).
-//     Is MinGW build pe DEFAULT ON. Explicitly: -D_GLIBCXX_ASSERTIONS
+//     GCC 16.2 pe sirf -O0 pe default on; -O2 pe khud lagao: -D_GLIBCXX_ASSERTIONS
 //     (build.ps1 ka `san` target ASan na milne pe isi pe fall back karta hai.)
 //
 //  C) -O2 -Warray-bounds -- compile-time, sirf constant/provable OOB.

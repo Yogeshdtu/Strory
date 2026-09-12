@@ -1,8 +1,8 @@
 # 12 — Folder 09 Revision + Exercises
 
 ## Prerequisites
-Lessons 01–11 aur saare 7 examples chalaye hue (`06_oob_asan` bhi — woh STL OOB pe
-abort hota hai).
+Lessons 01–11 aur saare 7 examples chalaye hue (`06_oob_asan` bhi — debug build mein woh STL OOB
+pe abort hota hai).
 
 ---
 
@@ -38,35 +38,35 @@ abort hota hai).
 int a[5] = {1, 2};
 for (int x : a) std::cout << x << " ";
 ```
-<details><summary>Answer</summary>`1 2 0 0 0 ` — partial init zeros the rest.</details>
+<details><summary>Answer</summary>`1 2 0 0 0 ` — adhoora init baaki elements ko zero kar deta hai.</details>
 
 ### B2
 ```cpp
 int a[] = {10, 20, 30, 40};
 std::cout << std::size(a) << " " << sizeof(a) << " " << *(a + 2);
 ```
-<details><summary>Answer</summary>`4 16 30`</details>
+<details><summary>Answer</summary>`4 16 30` (jahan `int` 4 bytes ka hai — practically har jagah).</details>
 
 ### B3
 ```cpp
 void f(int a[]) { std::cout << sizeof(a); }
 int main() { int x[10]; std::cout << sizeof(x) << " "; f(x); }
 ```
-<details><summary>Answer</summary>`40 8` — array size, then pointer size (decay).</details>
+<details><summary>Answer</summary>`40 8` — pehle poore array ka size, phir pointer ka size (decay). GCC `-Wsizeof-array-argument` warning bhi deta hai.</details>
 
 ### B4
 ```cpp
 int m[2][3] = {1, 2, 3, 4, 5, 6};
 std::cout << m[1][0] << " " << *(&m[0][0] + 4);
 ```
-<details><summary>Answer</summary>`4 5` — row-major: `m[1][0]` is offset 3; `&m[0][0]+4` is offset 4 = `m[1][1]` = 5.</details>
+<details><summary>Answer</summary>`4 5` — row-major: `m[1][0]` offset 3 pe hai; `&m[0][0]+4` offset 4 = `m[1][1]` = 5.</details>
 
 ### B5
 ```cpp
 std::array<int, 3> a = {1, 2, 3}, b = {1, 2, 3};
 std::cout << std::boolalpha << (a == b) << " " << (a.data() == b.data());
 ```
-<details><summary>Answer</summary>`true false` — element-wise equal, different storage.</details>
+<details><summary>Answer</summary>`true false` — elements barabar hain, par storage alag-alag.</details>
 
 ### B6
 ```cpp
@@ -83,16 +83,16 @@ std::cout << s.size();
 int a[5] = {};
 int canary = 42;
 for (std::size_t i = 0; i <= 5; ++i) a[i] = 7;
-std::cout << canary;   // (undefined -- may print 7, 42, or crash)
+std::cout << canary;   // (undefined -- 7, 42, ya crash)
 ```
-<details><summary>Answer</summary>UB — `a[5]` OOB write. Often prints `7` (canary overwritten) at `-O0`; anything at `-O2`. This is why we use tools.</details>
+<details><summary>Answer</summary>UB — `a[5]` OOB write hai. `-O0` pe aksar `7` print hota hai (canary overwrite ho gaya); `-O2` pe kuch bhi. Isi liye tools chahiye.</details>
 
 ### B8
 ```cpp
 std::array<int, 4> a;
 std::cout << a[0];
 ```
-<details><summary>Answer</summary>Garbage — local `std::array` of trivial type, no `{}`. Use `std::array<int,4> a{};`.</details>
+<details><summary>Answer</summary>Garbage — trivial type ka local `std::array`, bina `{}` ke. `std::array<int,4> a{};` likho.</details>
 
 ---
 
@@ -103,7 +103,7 @@ std::cout << a[0];
 int daily[7];
 for (int i = 1; i <= 7; ++i) daily[i] = readTemp();
 ```
-<details><summary>Answer</summary>Start `1` (misses `daily[0]`), `<= 7` (`daily[7]` OOB). `for (int i = 0; i < 7; ++i)`.</details>
+<details><summary>Answer</summary>`1` se shuru (`daily[0]` chhoot gaya), aur `<= 7` (`daily[7]` OOB). `for (int i = 0; i < 7; ++i)` likho.</details>
 
 ### C2
 ```cpp
@@ -114,7 +114,7 @@ double avg(int scores[]) {
     return double(sum) / n;
 }
 ```
-<details><summary>Answer</summary>Decay: `sizeof(scores)` = 8, `n` = 2. Pass the size, or `std::span<const int>`.</details>
+<details><summary>Answer</summary>Decay: `sizeof(scores)` = 8, to `n` = 2. Size alag se pass karo, ya `std::span<const int>` lo.</details>
 
 ### C3
 ```cpp
@@ -124,7 +124,7 @@ int* firstN(int n) {
     return buf;
 }
 ```
-<details><summary>Answer</summary>Returns pointer to dead local (decay + local lifetime). Also `n > 100` → OOB. Return `std::array`/`std::vector`, or fill a caller's `std::span`.</details>
+<details><summary>Answer</summary>Mar chuke local ka pointer return (decay + local lifetime). Saath mein `n > 100` → OOB. `std::array`/`std::vector` return karo, ya caller ka `std::span` bharo.</details>
 
 ### C4
 ```cpp
@@ -133,7 +133,7 @@ int* p = &v[0];
 v.push_back(4);
 std::cout << *p;
 ```
-<details><summary>Answer</summary>`push_back` may reallocate → `p` dangling → UB. `reserve(4)` first, or re-fetch `&v[0]` after.</details>
+<details><summary>Answer</summary>`push_back` realloc kar sakta hai → `p` dangling → UB. Pehle `reserve(4)` karo, ya baad mein `&v[0]` dobara lo.</details>
 
 ### C5
 ```cpp
@@ -142,42 +142,42 @@ for (int j = 0; j < 3; ++j)
     for (int i = 0; i < 3; ++i)
         a[i][j] = i + j;
 ```
-<details><summary>Answer</summary>Correct output, but column-major traversal (inner loop `i`) — cache-hostile. Swap loop order to `i` outer, `j` inner.</details>
+<details><summary>Answer</summary>Output sahi hai, par traversal column-major hai (inner loop `i`) — cache ke liye bura. Loop order badlo: `i` bahar, `j` andar.</details>
 
 ### C6
 ```cpp
 int n = getCount();
 int buffer[n];
 ```
-<details><summary>Answer</summary>VLA — non-standard in C++, stack-overflow risk if `n` attacker-controlled. `std::vector<int> buffer(n)`.</details>
+<details><summary>Answer</summary>VLA — C++ mein standard nahi, aur agar `n` attacker ke haath mein ho to stack overflow ka khatra. `std::vector<int> buffer(n)` lo.</details>
 
 ### C7
 ```cpp
 int a[4] = {1,2,3,4}, b[4];
 b = a;
 ```
-<details><summary>Answer</summary>Compile error — arrays not assignable. `std::copy`, or `std::array` (`b = a` works).</details>
+<details><summary>Answer</summary>Compile error — arrays assign nahi hote. `std::copy` use karo, ya `std::array` (usme `b = a` chalta hai).</details>
 
 ### C8
 ```cpp
 char name[5] = "hello";
 std::cout << name;
 ```
-<details><summary>Answer</summary>No room for `'\0'` (5 chars + terminator needs 6). Some compilers error; if it compiles, `std::cout << name` reads past the array (OOB). `char name[6]` or `char name[]`.</details>
+<details><summary>Answer</summary>`"hello"` ko 6 bytes chahiye (5 letters + `'\0'`). **C++ mein yeh compile error hai** — GCC 16.2: `initializer-string for 'char [5]' is too long`. (C language mein yahi line chupchaap compile ho jaati hai, bina `'\0'` ke — phir print karna OOB padhta.) Fix: `char name[6]` ya `char name[] = "hello";`.</details>
 
 ---
 
 ## PART D — Practical tasks
 
-### D1. Stats over a span
+### D1. Span pe stats
 `struct Stats { int min, max; double mean; long long sum; };`
-`Stats analyze(std::span<const int> data);` — one pass, handle empty (throw or
-`std::optional<Stats>`). Test with C array, `std::array`, `std::vector`, subspan.
+`Stats analyze(std::span<const int> data);` — ek hi pass, khaali input handle karo (throw ya
+`std::optional<Stats>`). C array, `std::array`, `std::vector`, aur subspan pe test karo.
 
 ### D2. In-place operations
-`std::span<int>` versions of: `reverse`, `rotateLeft(k)`, `partitionEvens`
-(evens before odds, stable), `dedupSorted` (return new logical size). No
-allocation. Compare to `std::` equivalents.
+`std::span<int>` wale versions likho: `reverse`, `rotateLeft(k)`, `partitionEvens` (evens pehle,
+odds baad mein, order bana rahe), `dedupSorted` (naya logical size return karo). Koi allocation
+nahi. `std::` wale equivalents se compare karo.
 
 ### D3. Matrix library (flat storage)
 ```cpp
@@ -188,35 +188,36 @@ struct Matrix {
 };
 Matrix multiply(const Matrix& a, const Matrix& b);   // i, k, j loop order
 ```
-Benchmark `i,j,k` vs `i,k,j` loop order at `-O2` (folder 07 file 09 idea).
+`-O2` pe `i,j,k` vs `i,k,j` loop order benchmark karo (folder 07 file 09 wala idea).
 
 ### D4. AoS ↔ SoA converter
 `struct ParticleAoS { float x,y,z,vx,vy,vz; };`
 `struct ParticleSoA { std::vector<float> x, y, z, vx, vy, vz; };`
-Write `toSoA(std::span<const ParticleAoS>)` and `toAoS(const ParticleSoA&)`.
-Benchmark a "gravity step" (touches all 6) and a "sum of x" (touches 1) on both.
+`toSoA(std::span<const ParticleAoS>)` aur `toAoS(const ParticleSoA&)` likho. Dono layouts pe ek
+"gravity step" (saare 6 fields) aur ek "sum of x" (1 field) benchmark karo.
 
 ### D5. Ring buffer (power-of-2, `std::array` storage)
 ```cpp
-template <class T, std::size_t Cap>          // Cap must be power of 2
+template <class T, std::size_t Cap>          // Cap power of 2 hona chahiye
 class Ring {
     static_assert((Cap & (Cap - 1)) == 0);
     std::array<T, Cap> buf_;
     std::size_t head_ = 0, tail_ = 0;
-    // push, pop, size, empty, full -- wrap with & (Cap - 1), no %
+    // push, pop, size, empty, full -- & (Cap - 1) se wrap, % nahi
 };
 ```
-Zero heap. Test wrap-around thoroughly.
+Heap zero. Wrap-around achhe se test karo.
 
 ### D6. Safe wire decoder
-`std::span<const std::byte>` input. Read a header (`u16 len`, `u8 type`), then
-`len` bytes of payload. Every read bounds-checked against `.size()`. Feed it
-truncated / oversized inputs — never OOB, always a clean error.
+Input `std::span<const std::byte>`. Ek header padho (`u16 len`, `u8 type`), phir `len` bytes ka
+payload. Har read `.size()` ke against check ho. Adhoore / zaroorat se bade inputs do — kabhi OOB
+nahi, hamesha saaf error.
 
 ### D7. `_GLIBCXX_ASSERTIONS` / ASan lab
-Take `06_oob_asan.cpp`. On this machine: `./build.ps1 san` catches BUG 4. If you
-have WSL/Linux/Clang: `-fsanitize=address,undefined` — does it catch BUG 1–3
-(raw array) too? Write down each tool's coverage.
+`06_oob_asan.cpp` lo. Is machine pe: `./build.ps1` (debug, `-O0`) aur `./build.ps1 san` BUG 4
+pakadte hain; `./build.ps1 fast` (`-O2`) nahi pakadta — kyun? (Lesson 11.) Agar WSL/Linux/Clang
+hai: `-fsanitize=address,undefined` — kya BUG 1–3 (raw array) bhi pakde gaye? Har tool ki pahunch
+likho.
 
 ---
 
@@ -233,10 +234,10 @@ have WSL/Linux/Clang: `-fsanitize=address,undefined` — does it catch BUG 1–3
 [ ] std::array -- no decay, value semantics, zero overhead
 [ ] Row-major 2D layout, m[i][j] address formula
 [ ] Traversal order aur cache (~8x) samajh aata hai
-[ ] AoS vs SoA -- kab kaunsa, ~4x measured dekha
+[ ] AoS vs SoA -- kab kaunsa, kai guna farq khud naapa (GCC 16.2 pe ~5x)
 [ ] Stack vs heap array, reserve() ka role
 [ ] delete vs delete[], iterator invalidation pata hai
-[ ] ASan / _GLIBCXX_ASSERTIONS / -Warray-bounds ka coverage pata hai
+[ ] ASan / _GLIBCXX_ASSERTIONS (-O0 vs -O2!) / -Warray-bounds ka coverage pata hai
 [ ] Saare 7 examples chalaye
 ```
 
@@ -256,10 +257,10 @@ struct Level { std::int64_t price; std::int64_t qty; };
 
 template <std::size_t Depth>
 class BookSide {
-    std::array<Level, Depth> levels_{};       // sorted, best at [0]
+    std::array<Level, Depth> levels_{};       // sorted, best [0] pe
     std::size_t count_ = 0;
 public:
-    void insert(std::int64_t price, std::int64_t qty);   // keep sorted
+    void insert(std::int64_t price, std::int64_t qty);   // sorted rakho
     void erase(std::int64_t price);
     void modify(std::int64_t price, std::int64_t qty);
     Level best() const;                                    // O(1)
@@ -267,37 +268,35 @@ public:
 };
 ```
 
-Requirements: **zero heap**, best bid/ask O(1), insert/erase keep sorted (shift in
-array — measure vs a sorted `std::vector`). Bounds-safe. Bench 1M random ops.
-`-Wall -Wextra -Wshadow -Werror` clean. Foundation for folder 39.
+Shartein: **heap zero**, best bid/ask O(1), insert/erase sorted order bana ke rakhein (array mein
+shift — sorted `std::vector` ke against naapo). Bounds-safe. 1M random ops ka benchmark.
+`-Wall -Wextra -Wshadow -Werror` clean. Folder 39 ki neev.
 
 ### Challenge 2: "Array bug museum"
 
-Every bug from lesson 11 as a live, safety-instrumented demo: buggy version +
-compiler warning (exact text) + fixed version + an input where the bug produces
-visibly wrong output/behaviour. Run under `./build.ps1 san` and (if available)
-ASan — record what each tool catches. Extend `06_oob_asan.cpp`.
+Lesson 11 ka har bug ek live, safety-instrumented demo ki tarah: buggy version + compiler warning
+(exact text) + fixed version + ek aisa input jahan bug saaf galat output/behaviour de. `./build.ps1
+san` aur (agar ho to) ASan ke neeche chalao — likho kaunsa tool kya pakadta hai. `06_oob_asan.cpp`
+ko extend karo.
 
 ### Challenge 3: "2D convolution — layout & loop-order study"
 
-3×3 kernel over an `N×N` (`N = 2048`) `float` image, flat `std::vector<float>`
-storage. Implement:
+`N×N` (`N = 2048`) `float` image pe 3×3 kernel, flat `std::vector<float>` storage. Implement karo:
 1. Naive `i, j, ki, kj`
-2. Loop reorder for sequential inner access
+2. Loop reorder taaki inner access sequential ho
 3. Tiled (`32×32` blocks)
 4. `-O3 -march=native` (vectorized)
 
-Benchmark all four at `-O2` and `-O3 -march=native`. GFLOP/s table. Explain each
-jump (cache, prefetch, SIMD). `-fopt-info-vec` to confirm vectorization.
+Chaaron ko `-O2` aur `-O3 -march=native` pe benchmark karo. GFLOP/s ki table. Har uchhaal samjhao
+(cache, prefetch, SIMD). Vectorization confirm karne ke liye `-fopt-info-vec`.
 
 ---
 
 ## 🎉 Folder 09 complete
 
-Arrays: contiguous layout, `a[i] == *(a+i)`, **array decay** (the pointer
-gateway), 2D row-major, `std::array` (size-safe, zero overhead), `std::span`
-(the modern array parameter), AoS vs SoA (~4x measured), and the full bug
-catalogue with tooling.
+Arrays: contiguous layout, `a[i] == *(a+i)`, **array decay** (pointers ka darwaza), 2D row-major,
+`std::array` (size-safe, zero overhead), `std::span` (modern array parameter), AoS vs SoA (kai guna,
+naapa hua), aur tooling ke saath poora bug catalogue.
 
 Agla: **strings** — jo andar se `char` arrays hain, plus `std::string` ka SSO.
 

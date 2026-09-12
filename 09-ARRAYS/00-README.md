@@ -43,8 +43,12 @@ Aur yahan **array decay** milega — jo pointers ka darwaza hai.
 ## Status
 ✅ **COMPLETE** (Batch 4). 11 lessons + exercises + 7 compile-verified examples.
 Highlights: array decay + `sizeof` trap, `std::array` / `std::span`, row-major 2D,
-**AoS vs SoA measured ~4x** (`07_aos_vs_soa.cpp`), OOB bug catalogue with
-`_GLIBCXX_ASSERTIONS` (MinGW; ASan on Linux).
+**AoS vs SoA naapa** (`07_aos_vs_soa.cpp`: GCC 15.1 pe ~4.4x, GCC 16.2 pe 5.4–5.8x), OOB bug
+catalogue — `_GLIBCXX_ASSERTIONS` (GCC 16.2 pe sirf `-O0` pe default), Linux pe ASan.
+
+**Hinglish pass (gap-fix part 2):** lessons 04, 06–12 aur READMEs Hinglish mein; saath mein
+accuracy fixes — `std::span` Windows x64 ABI pe pointer se jaata hai (assembly se dekha),
+`_GLIBCXX_ASSERTIONS` ka `-O2` pe off hona, AoS/SoA GCC 16.2 pe dobara naapa.
 
 ## Next
 → [`../10-STRINGS/00-README.md`](../10-STRINGS/00-README.md)

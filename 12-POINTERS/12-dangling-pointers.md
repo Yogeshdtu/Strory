@@ -85,8 +85,9 @@ sakta hai jab tak timing / allocator state / optimization na badle.
 | MSan (memory sanitizer) | uninitialized reads |
 
 Is course ke MinGW toolchain pe ASan nahi hai → UAF demos ke liye WSL / Linux /
-Clang use karo. `-D_GLIBCXX_ASSERTIONS` (is GCC pe default on) STL ka `[]` OOB
-pakadta hai, par raw UAF nahi.
+Clang use karo. `-D_GLIBCXX_ASSERTIONS` STL ka `[]` OOB
+pakadta hai, par raw UAF nahi. (GCC 16.2 pe yeh sirf `-O0` pe default on hai — `-O2` pe khud
+lagao; folder 09 file 11.)
 
 ---
 

@@ -8,35 +8,34 @@
 ## Yeh topic abhi kyun
 Arrays fast kyun hain — aur unhe fast rakhne ke rules. Contiguity + predictable
 stride = cache aur prefetcher ke best friends. Aur ek bada design lever: same data,
-do layouts — **AoS vs SoA** — jismein 4x tak farq (yahan measure karenge).
+do layouts — **AoS vs SoA** — jismein kai guna farq aata hai (yahan measure karenge).
 
 ---
 
 ## Arrays fast kyun
 
-1. **Contiguous** → ek cache line (64 B = 16 `int`) mein 16 elements. 1 miss →
-   16 useful values.
-2. **Predictable stride** → hardware prefetcher pattern pakadta hai, aage ka data
-   pehle se laata hai → memory latency hidden.
-3. **`arr[i]` = ek scaled load** (`base + i*size`) — CPU addressing mode, 1
-   instruction.
-4. **Auto-vectorization** → simple array loops `-O2`/`-O3` pe SIMD (4-16
-   elements/instruction).
-5. **Branch-predictable** loop bound.
+1. **Contiguous** → ek cache line (64 B = 16 `int`) mein 16 elements. Ek miss → 16 kaam ki
+   values.
+2. **Predictable stride** → hardware prefetcher pattern pakad leta hai aur aage ka data pehle
+   se le aata hai → memory ka intezaar chhup jaata hai.
+3. **`arr[i]` = ek scaled load** (`base + i*size`) — CPU ka addressing mode, ek instruction.
+4. **Auto-vectorization** → simple array loops `-O2`/`-O3` pe SIMD (ek instruction mein 4-16
+   elements).
+5. **Branch-predictable** loop ki limit.
 
-`std::list` / pointer-chained data inme se **kisi ka** faayda nahi leta — har
-`next` ek cache miss.
+`std::list` / pointer se jude data ko inme se **ek bhi** faayda nahi milta — har `next` ek
+cache miss.
 
 ---
 
 ## Traversal order — recap (folder 07 file 09)
 
-Row-major 2D array ko column-major traverse karna → **~8x slower** (measured, 4096²).
-**Rule: inner loop = memory mein fastest-changing index (row-major → last index).**
+Row-major 2D array ko column-major traverse karna → **~8x slow** (naapa, 4096²).
+**Rule: inner loop = woh index jo memory mein sabse tez badalta hai (row-major → aakhri index).**
 
 ---
 
-## AoS vs SoA — layout decides speed
+## AoS vs SoA — layout se speed tay hoti hai
 
 Ek "entity" mein 6 fields (`x, y, z, vx, vy, vz`). 40 lakh entities.
 
@@ -53,36 +52,38 @@ struct { std::vector<int> x, y, z, vx, vy, vz; } entities;
 ```
 Memory: `[x0 x1 x2 ...][y0 y1 y2 ...]...`
 
-### Measured (`examples/07_aos_vs_soa.cpp`, GCC 15.1, `-O2`, N=4M)
+Analogy: AoS ek almari hai jisme har student ki file mein uske saare kaagaz hain. "Sabke marks
+jodo" bolo, to har file kholni padegi aur baaki kaagaz beech mein aayenge. SoA mein marks ki
+ek alag register hai — seedha ek line mein padh lo.
 
-```
-TASK A -- touch ONE field  (x = x*3 + 1):
-  AoS (stride 24 B)   : ~542 ms
-  SoA (contiguous)    : ~124 ms      -> SoA ~4.4x faster
+### Naapa (`examples/07_aos_vs_soa.cpp`, `-O2`, N=4M)
 
-TASK B -- x += vx  (2 of 6 fields):
-  AoS : ~502 ms
-  SoA : ~183 ms      -> SoA ~2.7x faster
-```
+| Task | GCC 15.1 (pehle naapa) | GCC 16.2 (3 runs) |
+|---|---|---|
+| **A** — sirf ek field (`x = x*3 + 1`) | AoS ~542 ms, SoA ~124 ms → **~4.4×** | AoS 488–566 ms, SoA 89–98 ms → **5.4–5.8×** |
+| **B** — 6 mein se 2 fields (`x += vx`) | AoS ~502 ms, SoA ~183 ms → **~2.7×** | AoS 489–546 ms, SoA 106–111 ms → **4.6–4.9×** |
 
-**Kyun:** TASK A sirf `x` chahiye. AoS mein har 64-byte cache line se sirf 4 bytes
-(`x`) kaam ke — **5/6 line barbaad**, 6x memory traffic. SoA mein poori line
-kaam ki, aur SIMD-vectorize aasan.
+**Kyun:** TASK A ko sirf `x` chahiye. AoS mein har entity ke 24 bytes mein se sirf 4 bytes
+(`x`) kaam ke — yaani har cache line ka 5/6 hissa bekaar ghoom ke aata hai. SoA mein poori line
+kaam ki hai, aur contiguous same-type data SIMD vectorize ke liye aasaan hai.
 
-### Kab AoS behtar
-Jab **poora entity ek saath** chahiye — "entity `i` ko move karo, uske saare
-fields chahiye". AoS mein ek entity ke 6 fields ek (ya do) cache line mein; SoA
-mein 6 alag arrays se 6 alag lines.
+**Compiler badla, farq bada:** wahi code, wahi machine — GCC 16.2 ne SoA loops ko pehle se
+behtar vectorize kiya, isliye gap badh gaya (khaaskar TASK B: ~2.7× → ~4.7×). Sabak: performance
+numbers **compiler version ke saath** likho, aur upgrade ke baad dobara naapo.
+
+### AoS kab behtar hai
+Jab **poora entity ek saath** chahiye — "entity `i` ko move karo, uske saare fields chahiye".
+AoS mein ek entity ke 6 fields ek (ya do) cache line mein hain; SoA mein 6 alag arrays se 6
+alag lines aayengi.
 
 | Access pattern | Layout |
 |---|---|
-| Field-subset over many entities (analytics, physics, SIMD) | **SoA** |
-| All fields of one entity at a time | **AoS** |
-| Mixed | AoSoA (hybrid), ya profile karke decide |
+| Bahut saari entities ke kuch fields (analytics, physics, SIMD) | **SoA** |
+| Ek entity ke saare fields ek saath | **AoS** |
+| Mila-jula | AoSoA (hybrid), ya profile karke decide karo |
 
-⚠️ `-O3 -march=native` pe compiler AoS ko bhi aggressively vectorize (gather)
-kar sakta hai — gap narrow hota hai, kbhi micro-tasks flip bhi ho jaate hain.
-**Apne target hardware + flags pe measure karo.**
+⚠️ `-O3 -march=native` pe compiler AoS ko bhi zor se vectorize (gather) kar sakta hai — gap kam
+ho sakta hai, kabhi chhote tasks mein ulta bhi. **Apne target hardware + flags pe naapo.**
 
 ---
 
@@ -90,71 +91,72 @@ kar sakta hai — gap narrow hota hai, kbhi micro-tasks flip bhi ho jaate hain.
 
 ```cpp
 void f() {
-    int a[1000];                       // STACK -- ~free alloc (rsp move), cache-hot
-    std::array<int, 1000> b;           // STACK -- same
-    std::vector<int> c(1000);          // HEAP -- new (bookkeeping), possibly cold, freed at scope end
-    static int d[1000];                // BSS  -- alloc-free, zero-init, program lifetime
+    int a[1000];                       // STACK -- allocation lagbhag free (rsp move), cache mein garam
+    std::array<int, 1000> b;           // STACK -- wahi
+    std::vector<int> c(1000);          // HEAP -- new (bookkeeping), shayad thanda, scope end pe free
+    static int d[1000];                // BSS  -- allocation free, zero-init, poore program tak
 }
 ```
 
 | | Stack `int[N]` / `std::array` | Heap `std::vector` |
 |---|---|---|
-| Alloc cost | ~0 | `new` (lock, bookkeeping) |
-| Size | compile-time; ~MB limit (overflow!) | runtime; GBs |
-| Locality | excellent (frame is cache-hot) | depends (fresh pages may fault) |
-| Freed | automatic (frame pop) | destructor / RAII |
+| Allocation cost | ~0 | `new` (lock, bookkeeping) |
+| Size | compile-time; kuch MB ki limit (overflow!) | runtime; GBs |
+| Locality | bahut achhi (frame cache mein garam) | depend karta hai (naye pages pe fault ho sakta hai) |
+| Free | apne aap (frame pop) | destructor / RAII |
 
-**Small, fixed, hot → stack array / `std::array`.** Large or runtime-sized →
-`std::vector` (with `reserve()` to avoid regrow). Huge fixed → `static` or heap.
+**Chhota, fixed, hot → stack array / `std::array`.** Bada ya runtime size → `std::vector`
+(`reserve()` ke saath taaki baar-baar na badhe). Bahut bada fixed → `static` ya heap.
 
-⚠️ `int big[1'000'000]` on stack → **stack overflow** (folder 08 lesson 05).
+⚠️ Stack pe `int big[1'000'000]` → **stack overflow** (folder 08 lesson 05).
 
 ---
 
-## `reserve()` — vector regrowth
+## `reserve()` — vector ka baar-baar badhna
 
 ```cpp
 std::vector<int> v;
-for (int i = 0; i < 100000; ++i) v.push_back(i);   // ⚠️ ~17 reallocations + copies
+for (int i = 0; i < 100000; ++i) v.push_back(i);   // ⚠️ 18 allocations (pehla + 17 regrow) + copies
 
 std::vector<int> v;
-v.reserve(100000);                                  // ✅ one allocation
+v.reserve(100000);                                  // ✅ ek allocation
 for (int i = 0; i < 100000; ++i) v.push_back(i);
 ```
 
-Har reallocation = new block + copy all + free old. `reserve(upperBound)` ise
-khatam kar deta hai. (Folder 19.)
+Har regrow = naya block + saare elements copy/move + purana free. `capacity()` badalne pe gin
+ke dekha (GCC 16.2): 100000 `push_back` mein **18 allocations**, final capacity 131072 (har
+baar double). `reserve(upperBound)` ise khatam kar deta hai. (Folder 19.)
 
 ---
 
 ## Alignment (folder 05 file 05, folder 11)
 
 ```cpp
-alignas(64) std::array<float, 16> row;     // cache-line aligned -- SIMD + no false sharing
+alignas(64) std::array<float, 16> row;     // cache-line aligned -- SIMD + false sharing se bachav
 ```
 
-`alignas` se array ko cache-line (64) ya SIMD-register (16/32/64) boundary pe
-rakho — vectorized loads faster, false sharing (folder 28) avoid.
+`alignas` se array ko cache-line (64) ya SIMD register (16/32/64) ki boundary pe rakho —
+vectorized loads aasaan, aur false sharing (folder 28) se bachav.
 
 ---
 
 ## Andar kya hota hai
 
-- Sequential array loop → prefetcher streams data → loop is **memory-bandwidth
-  bound**, running at ~tens of GB/s.
-- Strided access (AoS single-field, column-major) → cache line ka fraction used →
-  effective bandwidth divided by (line_size / element_used).
-- `-O2` vectorizes contiguous same-type loops (SoA ideal); AoS single-field
-  needs gather (slower, needs `-O3`/`-march=native`).
-- Stack array: frame already in L1/L2 → first touch cheap. Fresh heap pages →
-  page fault + zero-fill on first touch (folder 29).
+- Sequential array loop → prefetcher data ki dhaara pehle se laata rehta hai → loop ki speed ki
+  seema aksar **memory bandwidth** banti hai, ek-ek cache miss nahi.
+- Koodte hue access (AoS ka single field, column-major) → har cache line ka chhota hissa hi kaam
+  ka → utne hi data ke liye zyada lines laani padti hain.
+- `-O2` contiguous same-type loops vectorize karta hai (SoA ideal); AoS ke single field ko
+  gather chahiye (slow, aur aksar `-O3`/`-march=native` pe hi).
+- Stack array: frame pehle se L1/L2 mein → pehla touch sasta. Heap ke naye pages → pehle touch pe
+  page fault + zero-fill (folder 29).
 
-> **HFT relevance:** Data layout is *the* biggest single-thread performance lever
-> in HFT. Order books, market-data snapshots, analytics buffers are **SoA / flat
-> arrays**, cache-line aligned, stack or preallocated. Hot loops touch only the
-> fields they need, contiguously, and vectorize. `std::vector` is preallocated
-> once (`reserve`) — never regrown on the hot path. `int**` / `list` / node
-> graphs are banned from hot code. Folders 32, 36, 39.
+> **HFT relevance:** Single thread pe data layout sabse bada performance lever hai. Order books,
+> market-data snapshots, analytics buffers **SoA / flat arrays** hote hain — cache-line aligned,
+> stack pe ya pehle se allocate kiye hue. Hot loops sirf zaroori fields chhoote hain, contiguous
+> tareeke se, aur vectorize hote hain. `std::vector` ek baar `reserve` hota hai — hot path pe kabhi
+> nahi badhta. `int**` / `list` / node graphs hot code mein ban hain. Aur jab compiler upgrade ho,
+> layout benchmarks dobara chalao — yahan GCC 16.2 ne gap badal diya. Folders 32, 36, 39.
 
 ---
 
@@ -162,7 +164,7 @@ rakho — vectorized loads faster, false sharing (folder 28) avoid.
 
 ```bash
 ./build.ps1 fast 09-ARRAYS/examples/07_aos_vs_soa.cpp        # AoS vs SoA
-# also -O3 -march=native -- gap change?
+# -O3 -march=native pe bhi -- gap badla?
 g++ -std=c++20 -O3 -march=native 09-ARRAYS/examples/07_aos_vs_soa.cpp -o aos3 && ./aos3
 ```
 
@@ -170,26 +172,26 @@ g++ -std=c++20 -O3 -march=native 09-ARRAYS/examples/07_aos_vs_soa.cpp -o aos3 &&
 
 ## ⚠️ Traps
 
-### Trap 1 — AoS for field-subset analytics
+### Trap 1 — field-subset analytics ke liye AoS
 ```cpp
-for (auto& e : entities) totalX += e.x;   // ⚠️ 5/6 of each line wasted
+for (auto& e : entities) totalX += e.x;   // ⚠️ har line ka 5/6 bekaar
 ```
 
-### Trap 2 — huge stack array
+### Trap 2 — bahut bada stack array
 ```cpp
 void f() { double m[2000][2000]; }        // ⚠️ 32 MB -> stack overflow
 ```
 
-### Trap 3 — vector without `reserve` in a hot fill loop
+### Trap 3 — hot fill loop mein bina `reserve` ke vector
 ```cpp
-for (...) v.push_back(x);                  // ⚠️ repeated reallocation
+for (...) v.push_back(x);                  // ⚠️ baar-baar reallocation
 ```
 
-### Trap 4 — micro-optimizing layout without profiling
-Profile first. For small data (fits in L1/L2), AoS vs SoA barely matters.
+### Trap 4 — bina profile kiye layout ka micro-optimization
+Pehle profile karo. Chhota data (L1/L2 mein aa jaaye) ho to AoS vs SoA se lagbhag fark nahi padta.
 
 ### Trap 5 — `-O0` benchmark
-Meaningless. `-O2` minimum.
+Bekaar hai. Kam se kam `-O2`.
 
 ---
 
@@ -197,35 +199,39 @@ Meaningless. `-O2` minimum.
 
 | ❌ Galat | ✅ Sahi |
 |---|---|
-| "Array speed = element count" | Access pattern (stride, contiguity) — up to 8x |
-| "AoS vs SoA doesn't matter" | ~4x for field-subset access (measured) |
-| "SoA always faster" | AoS wins for whole-entity access |
-| "Stack vs heap array — same speed" | Alloc cost + first-touch faults differ |
-| "`std::vector` grows for free" | Each regrow = alloc + copy all + free |
+| "Array ki speed = elements ki ginti" | Access pattern (stride, contiguity) — 8x tak |
+| "AoS vs SoA se fark nahi padta" | Field-subset access pe kai guna (naapa: 16.2 pe 5.4–5.8×) |
+| "SoA hamesha tez" | Poore entity ke access pe AoS jeetta hai |
+| "Stack vs heap array — same speed" | Allocation cost + pehle touch ke faults alag |
+| "`std::vector` free mein badhta hai" | Har regrow = allocation + saara copy + free |
+| "Benchmark ka result compiler badalne pe bhi wahi rahega" | Yahan 15.1 → 16.2 pe TASK B ~2.7× → ~4.7× hua |
 
 ---
 
 ## Exercises
 
-1. **AoS vs SoA:** `examples/07_aos_vs_soa.cpp` run at `-O2` and `-O3
-   -march=native`. Table: TASK A & B, both flag sets. Explain each.
+1. **AoS vs SoA:** `examples/07_aos_vs_soa.cpp` ko `-O2` aur `-O3 -march=native` pe chalao.
+   Table: TASK A & B, dono flag sets. Har ek ko samjhao.
 
-2. **Whole-entity access:** add a TASK C to the example — "for each entity,
-   `x = x + y + z + vx + vy + vz`" (all 6 fields). Now which layout wins?
+2. **Poore entity ka access:** example mein TASK C jodo — "har entity ke liye
+   `x = x + y + z + vx + vy + vz`" (saare 6 fields). Ab kaunsa layout jeeta?
 
-3. **`reserve`:** fill a `std::vector<int>` with 1M elements, with and without
-   `reserve(1'000'000)`. `-O2`, time. Reallocation count (instrument via a
-   custom allocator or `capacity()` logging).
+3. **`reserve`:** 1M elements se `std::vector<int>` bharo, `reserve(1'000'000)` ke saath aur
+   bina. `-O2`, time lo. Reallocations gino (`capacity()` badalne pe count karo).
+   <details><summary>Answer (count wala hissa)</summary>
 
-4. **Stack vs heap:** sum a 100000-int array — `int a[100000]` (stack) vs
-   `std::vector<int>(100000)` (heap), including allocation. First-run vs
-   warm-run difference?
+   Is lesson ka 100000 wala case GCC 16.2 pe **18 allocations** deta hai (capacity 1, 2, 4, …,
+   131072). 1M ke liye bhi doubling hi hai — khud gino. Time ka farq apni machine pe naapo.
+   </details>
 
-5. **Alignment:** `std::array<float, 16>` vs `alignas(64) std::array<float, 16>`
-   — SIMD add loop, `-O3 -march=native`, time. `-fopt-info-vec`.
+4. **Stack vs heap:** 100000-int array ka sum — `int a[100000]` (stack) vs
+   `std::vector<int>(100000)` (heap), allocation samet. Pehle run aur garam run mein farq?
 
-6. **Column-major on flat:** `std::vector<int> m(N*N)` — row-major vs
-   column-major sum. Same ~8x as folder 07 file 09?
+5. **Alignment:** `std::array<float, 16>` vs `alignas(64) std::array<float, 16>` — SIMD add loop,
+   `-O3 -march=native`, time lo. `-fopt-info-vec` bhi dekho.
+
+6. **Flat array pe column-major:** `std::vector<int> m(N*N)` — row-major vs column-major sum.
+   Folder 07 file 09 jaisa ~8x aaya?
 
 ---
 

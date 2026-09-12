@@ -19,17 +19,21 @@ std::array<int, 5> a = {1, 2, 3, 4, 5};   // #include <array>
 
 | | C array `int[5]` | `std::array<int, 5>` |
 |---|---|---|
-| Memory layout | 20 bytes contiguous | **identical** (zero overhead) |
-| `.size()` | ❌ (`std::size` before decay) | ✅ always |
-| Decay to pointer | ✅ (loses size) | ❌ (`.data()` explicit) |
-| Copy (`b = a`) | ❌ | ✅ (element-wise) |
-| Compare (`a == b`) | ❌ (compares addresses) | ✅ (element-wise) |
-| Return from function | ❌ (decays) | ✅ (RVO, free) |
-| `.at()` bounds-check | ❌ | ✅ (throws) |
-| STL algorithms | via `std::begin/end` | `.begin()/.end()` |
-| Pass to function | decays | **copies** by value (use `const&` / `span`) |
+| Memory layout | 20 bytes ek saath | **bilkul wahi** (koi extra kharcha nahi) |
+| `.size()` | ❌ (decay se pehle `std::size`) | ✅ hamesha |
+| Pointer mein decay | ✅ (size kho jaati hai) | ❌ (`.data()` se khud maango) |
+| Copy (`b = a`) | ❌ | ✅ (element-by-element) |
+| Compare (`a == b`) | ❌ (addresses compare hote hain) | ✅ (element-by-element) |
+| Function se return | ❌ (array return type allowed hi nahi) | ✅ (RVO, free) |
+| `.at()` bounds-check | ❌ | ✅ (exception phenkta hai) |
+| STL algorithms | `std::begin/end` ke zariye | `.begin()/.end()` |
+| Function ko dena | decay hota hai | by value **copy** hota hai (`const&` / `span` lo) |
 
-**`sizeof(std::array<int,5>) == sizeof(int[5]) == 20`.** No hidden overhead.
+**`sizeof(std::array<int,5>) == sizeof(int[5]) == 20`.** Koi chhupa hua kharcha nahi.
+
+Analogy: C array ek khula dibba hai jiske upar size likha nahi — kisi ko doge to woh sirf
+dibbe ka pata (pointer) le jaata hai. `std::array` wahi dibba hai, par ek wrapper ke andar
+jispe size chhapa hai, aur jise poora ka poora copy, compare, return kar sakte ho.
 
 ---
 
@@ -40,34 +44,33 @@ std::array<int, 5> a = {10, 20, 30, 40, 50};
 
 a.size()            // 5
 a.empty()           // false
-a[2]                // 30  (unchecked)
-a.at(2)             // 30  (checked -- throws std::out_of_range)
+a[2]                // 30  (check nahi hota)
+a.at(2)             // 30  (check hota hai -- galat index pe std::out_of_range)
 a.front()           // 10
 a.back()            // 50
-a.data()            // int*  (explicit decay -- for C APIs)
+a.data()            // int*  (khud maanga hua decay -- C APIs ke liye)
 a.fill(7)           // sab 7
 a.begin(), a.end()  // iterators
 a.rbegin(), a.rend()// reverse
 
 std::array<int, 5> b = a;              // copy
-b == a                                 // element-wise compare
+b == a                                 // element-by-element compare
 std::swap(a, b);                       // O(N) swap
-
 auto [p, q, r, s, t] = a;              // structured binding
 ```
 
 ---
 
-## No decay — but by-value COPIES
+## Decay nahi hota — par by-value COPY hota hai
 
 ```cpp
-void f(std::array<int, 5> a);          // ⚠️ 20-byte copy per call
-void f(const std::array<int, 5>& a);   // ✅ no copy, but locked to size 5
-void f(std::span<const int> a);        // ✅ no copy, any size (file 09)
+void f(std::array<int, 5> a);          // ⚠️ har call pe 20 bytes copy
+void f(const std::array<int, 5>& a);   // ✅ copy nahi, par sirf size 5 ke liye
+void f(std::span<const int> a);        // ✅ copy nahi, koi bhi size (file 09)
 ```
 
-Rule: read-only param → `std::span<const T>` (flexible) or `const std::array<T,
-N>&` (when size is part of the contract).
+Rule: read-only parameter → `std::span<const T>` (flexible), ya `const std::array<T, N>&`
+(jab size function ke contract ka hissa ho).
 
 ---
 
@@ -76,24 +79,24 @@ N>&` (when size is part of the contract).
 ```cpp
 std::array a = {1, 2, 3};              // -> std::array<int, 3>
 std::array b = {1.0, 2.0};            // -> std::array<double, 2>
-std::to_array({1, 2, 3});             // C++20 -- from a braced list or C array
+std::to_array({1, 2, 3});             // C++20 -- braced list ya C array se
 ```
 
 ---
 
-## Common uses
+## Kahan use hota hai
 
 ```cpp
 // Fixed lookup table (constexpr -- folder 08 lesson 11)
 constexpr std::array<int, 7> daysInMonth = {31, 28, 31, 30, 31, 30, 31};
 
-// Return multiple related values
+// Kai jude hue values ek saath return karna
 std::array<double, 3> rgbToHsv(double r, double g, double b);
 
-// Fixed-size buffer -- no heap
+// Fixed-size buffer -- heap nahi
 std::array<char, 64> lineBuffer;
 
-// Small stack of known max depth
+// Pata ho ki gehrai kitni max hogi -- chhota stack
 std::array<Node*, 32> dfsStack;
 std::size_t top = 0;
 ```
@@ -104,41 +107,40 @@ std::size_t top = 0;
 
 | | `std::array<T, N>` | `std::vector<T>` |
 |---|---|---|
-| Size | compile-time, fixed | runtime, growable |
-| Storage | inline (stack/wherever the array is) | heap |
-| Allocation | **none** | `new` on construct / grow |
+| Size | compile-time, fixed | runtime, badh sakta hai |
+| Storage | inline (jahan object hai — aksar stack) | heap |
+| Allocation | **koi nahi** | construct / badhne pe `new` |
 | `push_back` | ❌ | ✅ |
-| Cost of copy | fixed memcpy | heap alloc + copy |
+| Copy ki cost | fixed `memcpy` | heap allocation + copy |
 
-**Max size compile-time pe pata hai → `std::array`.** Warna `std::vector` (with
-`reserve()` if you know an upper bound).
+**Max size compile time pe pata hai → `std::array`.** Warna `std::vector` (aur agar upper
+limit pata ho to `reserve()`).
 
 ---
 
 ## Andar kya hota hai
 
-- `std::array` = `struct { T _elems[N]; }` — literally a C array in a struct.
-  Aggregate type, trivially copyable (for trivial `T`).
-- `[]` → same scaled load as C array. `.at()` → adds `cmp`/`jae`.
-- `.size()` → returns the compile-time `N` — folds to a constant, often
-  disappears.
-- Pass by value → `memcpy` of `N*sizeof(T)`. `-O2` may elide for small `N`.
-- `constexpr std::array` → data baked into `.rodata` (folder 08 lesson 11).
+- `std::array` = `struct { T _elems[N]; }` — sach mein ek struct ke andar C array. Aggregate
+  type hai, aur trivial `T` ke liye trivially copyable.
+- `[]` → C array jaisa hi ek scaled load. `.at()` → upar se ek `cmp`/`jae` (bounds check) judta hai.
+- `.size()` → compile-time `N` lautata hai — constant ban ke aksar gayab ho jaata hai.
+- By value dena → `N*sizeof(T)` bytes ka `memcpy`. `-O2` chhote `N` pe ise hata bhi sakta hai.
+- `constexpr std::array` → data seedha `.rodata` mein baith jaata hai (folder 08 lesson 11).
 
-> **HFT relevance:** `std::array` is everywhere in HFT: fixed message buffers,
-> price-level arrays (`std::array<Level, kDepth>`), small object pools,
-> ring-buffer storage, `constexpr` protocol tables. **Zero heap, cache-resident,
-> size-safe.** Pass as `std::span` to avoid the by-value copy. When the size is
-> genuinely runtime but bounded, a `std::array` + a `size_` counter (a "static
-> vector" / `boost::static_vector` / `std::inplace_vector` C++26) beats
-> `std::vector` for latency (folder 36).
+> **HFT relevance:** HFT mein `std::array` har jagah hai: fixed message buffers, price-level
+> arrays (`std::array<Level, kDepth>`), chhote object pools, ring-buffer ki storage, `constexpr`
+> protocol tables. **Heap zero, cache mein rehta hai, size-safe.** By-value copy se bachne ke liye
+> `std::span` se pass karo. Jab size sach mein runtime ho par ek limit ke andar, to `std::array` +
+> ek `size_` counter (a "static vector" — `boost::static_vector`, ya C++26 ka `std::inplace_vector`,
+> jo GCC 16.2 pe chal gaya — folder 22 file 15 ki C++26 probe) latency ke liye `std::vector` se
+> behtar hai (folder 36).
 
 ---
 
 ## Hands-on
 
-`examples/04_std_array.cpp` — API, `.at()` throw, value semantics, no-decay,
-STL algos, zero overhead:
+`examples/04_std_array.cpp` — API, `.at()` ka exception, value semantics, decay nahi hota,
+STL algorithms, zero overhead:
 
 ```bash
 ./build.ps1 09-ARRAYS/examples/04_std_array.cpp
@@ -148,33 +150,33 @@ STL algos, zero overhead:
 
 ## ⚠️ Traps
 
-### Trap 1 — pass by value
+### Trap 1 — by value pass karna
 ```cpp
-void process(std::array<Big, 100> a);   // ⚠️ huge copy. const& or span
+void process(std::array<Big, 100> a);   // ⚠️ bahut badi copy. const& ya span
 ```
 
-### Trap 2 — `.data()` outliving the array
+### Trap 2 — `.data()` array se zyada jee gaya
 ```cpp
 int* p;
 { std::array<int, 3> a = {1,2,3}; p = a.data(); }   // ⚠️ dangling
 ```
 
-### Trap 3 — `std::array<int>` (missing N)
+### Trap 3 — `std::array<int>` (N bhool gaye)
 ```cpp
-std::array<int> a;      // ❌ N is required
+std::array<int> a;      // ❌ N zaroori hai
 std::array<int, 5> a;   // ✅
 ```
 
-### Trap 4 — uninitialized `std::array` (same as C array for trivial T)
+### Trap 4 — uninitialized `std::array` (trivial T ke liye C array jaisa)
 ```cpp
-std::array<int, 5> a;   // ⚠️ elements uninitialized (garbage) if local
-std::array<int, 5> a{}; // ✅ all zero
+std::array<int, 5> a;   // ⚠️ local hai to elements mein garbage
+std::array<int, 5> a{}; // ✅ sab zero
 ```
 
-### Trap 5 — `a == b` with different `N`
+### Trap 5 — alag `N` wale arrays pe `a == b`
 ```cpp
 std::array<int, 3> a;  std::array<int, 4> b;
-a == b;                 // ❌ compile error (different types) -- not "false"
+a == b;                 // ❌ compile error (types alag hain) -- "false" nahi
 ```
 
 ---
@@ -183,33 +185,34 @@ a == b;                 // ❌ compile error (different types) -- not "false"
 
 | ❌ Galat | ✅ Sahi |
 |---|---|
-| "`std::array` has overhead vs C array" | Identical layout & speed |
-| "`std::array` doesn't decay, so pass by value is fine" | Copies — use `const&` / `span` |
-| "`std::array<int, 5> a;` zeroes elements" | Garbage (local, trivial T) — `a{}` |
-| "`std::array` can grow" | Fixed — `std::vector` for growable |
-| "`std::array` lives on the heap" | Wherever the object lives (usually stack) |
+| "`std::array` C array se slow / bhaari hai" | Layout aur speed bilkul same |
+| "`std::array` decay nahi hota, to by value dena theek hai" | Copy hota hai — `const&` / `span` lo |
+| "`std::array<int, 5> a;` elements ko zero karta hai" | Garbage (local, trivial T) — `a{}` likho |
+| "`std::array` badh sakta hai" | Fixed hai — badhne wala chahiye to `std::vector` |
+| "`std::array` heap pe rehta hai" | Jahan object hai wahin (aksar stack) |
+| "C array function se return hoke decay ho jaata hai" | Return type array ho hi nahi sakta — compile error |
 
 ---
 
 ## Exercises
 
 1. **API tour:** `std::array<int, 6> a = {5,2,8,1,9,3}` — `size`, `front`, `back`,
-   `at(2)`, `at(10)` (catch), `fill(0)`, sort, `max_element`.
+   `at(2)`, `at(10)` (catch karo), `fill(0)`, sort, `max_element`.
 
 2. **Value semantics:** `auto b = a; b[0] = 99;` — `a[0]` badla? `a == b`?
 
 3. **Copy cost:** `void f(std::array<int, 1000> a)` vs `const&` — 100000 calls,
-   `-O2`, time.
+   `-O2`, time lo.
 
 4. **`constexpr` table:** `constexpr std::array<int, 13> fib()` — fib(0..12).
-   `static_assert(fib()[10] == 55);` `-S` se dekho data rodata mein.
+   `static_assert(fib()[10] == 55);` `-S` se dekho ki data `.rodata` mein hai.
 
 5. **Static vector:** `template<class T, std::size_t Cap> struct SmallVec {
-   std::array<T, Cap> buf; std::size_t n = 0; void push(T); ... };` — implement
-   `push`, `size`, `operator[]`, range-for support.
+   std::array<T, Cap> buf; std::size_t n = 0; void push(T); ... };` — `push`, `size`,
+   `operator[]`, aur range-for support implement karo.
 
-6. **`std::array` vs `std::vector`:** ek fixed 8-slot cache — dono se implement,
-   `-O2` pe insert/lookup time. Allocation count?
+6. **`std::array` vs `std::vector`:** ek fixed 8-slot cache — dono se banao, `-O2` pe
+   insert/lookup time lo. Allocations kitne hue?
 
 ---
 

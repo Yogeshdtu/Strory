@@ -156,8 +156,8 @@ v.data()    // T* to the buffer -- for C-API interop, or v.data() + i
 ```
 
 Hot code: `v[i]` after validating `i` once. `at()` at boundaries / with untrusted
-indices. (GCC's `_GLIBCXX_ASSERTIONS`, on by default on this repo's toolchain,
-makes `v[i]` OOB abort — folder 09.)
+indices. (GCC's `_GLIBCXX_ASSERTIONS` makes `v[i]` OOB abort — on GCC 16.2 it is on by default
+**only at `-O0`**; at `-O2` add `-D_GLIBCXX_ASSERTIONS` yourself — folder 09 file 11.)
 
 ---
 

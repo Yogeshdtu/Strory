@@ -117,19 +117,22 @@ for (std::size_t j = 0; j < COLS; ++j)
 
 ## Andar kya hota hai
 
-- Range-for over a C array = index loop (`begin`/`end` = `arr` / `arr + N`). Same
-  codegen as manual index loop `-O2` pe.
-- Simple loops (`sum += a[i]`) → compiler **auto-vectorizes** (SIMD) `-O2`/`-O3`
-  pe — 4-16 elements per instruction (folder 07 file 09).
-- Loop bound `std::size(a)` compile-time constant → loop unroll / full unroll for
-  small `N`.
-- Sequential access → hardware prefetcher → memory latency hidden.
+- C array pe range-for andar se ek index loop hi hai (`begin` = `arr`, `end` =
+  `arr + N`). `-O2` pe iska machine code haath se likhe index loop jaisa hi banta hai —
+  isliye range-for "slow" nahi hai.
+- `sum += a[i]` jaise simple loops ko compiler `-O2`/`-O3` pe **auto-vectorize** kar
+  deta hai (SIMD) — ek instruction mein 4 se 16 elements tak (folder 07 file 09).
+- Jab loop ki limit `std::size(a)` compile time pe pata ho, to chhote `N` ke liye compiler
+  loop ko khol ke (unroll) seedhi instructions bana sakta hai.
+- Elements ek ke baad ek memory mein hain → CPU ka hardware prefetcher agla data pehle se
+  cache mein le aata hai → memory ka intezaar chhup jaata hai.
 
-> **HFT relevance:** Hot loops over contiguous arrays (`std::array`, `std::vector`,
-> raw) — auto-vectorized, prefetched, branch-predictable. `std::list` /
-> pointer-chained data → har element ek cache miss → hot path se bahar.
-> Parallel-array (SoA) traversal (file 10, folder 11) SIMD ke liye ideal. Rule:
-> hot loop → contiguous array → let `-O2` vectorize.
+> **HFT relevance:** Hot loops hamesha contiguous arrays pe chalte hain (`std::array`,
+> `std::vector`, ya raw array) — compiler vectorize karta hai, prefetcher data pehle se
+> laata hai, aur branches predictable rehti hain. `std::list` jaisa pointer se jura data
+> matlab har element pe ek cache miss — isliye woh hot path se bahar rehta hai.
+> Parallel arrays (SoA — file 10, folder 11) pe traversal SIMD ke liye sabse achha hai.
+> Rule yaad rakho: hot loop → contiguous array → `-O2` ko vectorize karne do.
 
 ---
 
@@ -148,24 +151,24 @@ for (std::size_t j = 0; j < COLS; ++j)
 for (std::size_t i = 0; i <= std::size(a); ++i) a[i] = 0;   // ⚠️ last iter OOB
 ```
 
-### Trap 2 — `int i` vs `size()`
+### Trap 2 — `int i` ko `size()` se compare karna
 ```cpp
 for (int i = 0; i < std::size(a); ++i) { }   // ⚠️ -Wsign-compare. size_t i, ya std::ssize
 ```
 
-### Trap 3 — range-for copy of big elements
+### Trap 3 — range-for mein bade elements ki copy
 ```cpp
 for (auto row : matrix) { }        // ⚠️ har row (poora array) copy. const auto&
 ```
 
-### Trap 4 — modify array size while ranging (vector)
+### Trap 4 — loop chalte-chalte size badalna (vector)
 ```cpp
 for (int x : v) if (cond(x)) v.push_back(...);   // ⚠️ reallocation -> UB (folder 07 file 07)
 ```
 
-### Trap 5 — `std::size` on decayed array
+### Trap 5 — decay ho chuke array pe `std::size`
 ```cpp
-void f(int a[]) { for (std::size_t i = 0; i < std::size(a); ++i) ... }   // ❌ compile error (a is pointer)
+void f(int a[]) { for (std::size_t i = 0; i < std::size(a); ++i) ... }   // ❌ compile error (a yahan pointer hai)
 ```
 
 ---

@@ -11,22 +11,22 @@ function ko array dena hai — kaunsa parameter type?"
 
 ---
 
-## Options — cheat sheet
+## Options — ek nazar mein
 
-| Parameter type | Kaam karta hai | Size milta hai | Kab |
+| Parameter type | Kya accept karta hai | Size milta hai? | Kab use karo |
 |---|---|---|---|
-| `int* arr, std::size_t n` | any contiguous | ✅ (aap pass karo) | C API boundary |
-| `std::span<int>` (C++20) | C array, `std::array`, `std::vector` | ✅ auto | **modern default** |
-| `std::span<const int>` | same, read-only | ✅ auto | read-only default |
-| `const int (&arr)[N]` (template) | compile-time-sized C array only | ✅ auto (`N`) | fixed-size, no `std::array` |
-| `const std::array<int, N>&` | that exact `std::array` only | ✅ (in type) | when caller uses `std::array` |
-| `int arr[]` / `int arr[10]` | **= `int*`** — legacy | ❌ | avoid (misleading) |
+| `int* arr, std::size_t n` | koi bhi contiguous data | ✅ (aap khud pass karte ho) | C API ki boundary pe |
+| `std::span<int>` (C++20) | C array, `std::array`, `std::vector` | ✅ apne aap | **modern default** |
+| `std::span<const int>` | wahi sab, sirf padhne ke liye | ✅ apne aap | read-only ka default |
+| `const int (&arr)[N]` (template) | sirf compile-time size wala C array | ✅ apne aap (`N`) | fixed-size C array, `std::array` nahi |
+| `const std::array<int, N>&` | sirf wahi exact `std::array` | ✅ (type mein hai) | jab caller `std::array` hi use karta ho |
+| `int arr[]` / `int arr[10]` | **= `int*`** — purana tareeka | ❌ | bacho (dhokha deta hai) |
 
-**Default: `std::span<const T>` for read, `std::span<T>` for modify.**
+**Default: padhne ke liye `std::span<const T>`, badalne ke liye `std::span<T>`.**
 
 ---
 
-## 1. `std::span` — the modern answer
+## 1. `std::span` — modern jawab
 
 ```cpp
 #include <span>
@@ -41,16 +41,22 @@ int cArr[] = {1, 2, 3};
 std::array<int, 4> stdArr = {10, 20, 30, 40};
 std::vector<int> vec = {100, 200, 300};
 
-sum(cArr);      // works
-sum(stdArr);    // works
-sum(vec);       // works
+sum(cArr);      // chalta hai
+sum(stdArr);    // chalta hai
+sum(vec);       // chalta hai
 ```
 
-- 16 bytes (`ptr` + `len`), passed in registers — zero overhead
-- `.size()`, `.subspan()`, `.first()`, `.last()`, range-for, `[]`, `.at()` (C++26)
-- `std::span<T>` → mutable view; `std::span<const T>` → read-only
-- ⚠️ Non-owning — caller ka storage function call ke doraan zinda rahe (usually
-  trivially true for a parameter)
+Ek hi function, teeno tarah ke containers. Kaise? `std::span` sirf do cheezein rakhta hai:
+**pointer** (data kahan shuru hota hai) aur **length** (kitne elements). Woh data ka maalik
+nahi — bas usko "dekhne ki khidki" hai.
+
+- Size: 16 bytes (`ptr` + `len`) — array chahe kitna bhi bada ho, copy sirf yeh 16 bytes
+  hoti hai.
+- `.size()`, `.subspan()`, `.first()`, `.last()`, range-for, `[]`, aur `.at()` (C++26).
+- `std::span<T>` → badal sakte ho; `std::span<const T>` → sirf padh sakte ho.
+- ⚠️ Non-owning hai — caller ka data function call ke dauraan zinda rehna chahiye. Parameter
+  ke liye yeh aam taur pe apne aap sach hota hai; khatra tab hai jab span ko **store** karo
+  (Trap 2).
 
 ## 2. Pointer + size (C style)
 
@@ -63,27 +69,27 @@ long long sum(const int* arr, std::size_t n) {
 sum(data, std::size(data));
 ```
 
-Fine for C interop. Risk: caller `n` galat pass kar sakta hai (span mein yeh
-automatic hai).
+C code ke saath kaam karne ke liye theek hai. Khatra: caller galat `n` de sakta hai — span mein
+size data ke saath hi aati hai, isliye yeh galti hoti hi nahi.
 
 ## 3. Reference-to-array (template)
 
 ```cpp
 template <std::size_t N>
-long long sum(const int (&arr)[N]) {          // N deduced -- no decay
+long long sum(const int (&arr)[N]) {          // N compiler khud nikaalta hai -- decay nahi hota
     long long s = 0;
     for (int x : arr) s += x;
     return s;
 }
-sum(data);   // no size needed
+sum(data);   // size dene ki zaroorat nahi
 ```
 
-- No decay → `N` known, range-for works, `sizeof` correct
-- ⚠️ Only compile-time-sized C arrays. `std::array`, `std::vector`, decayed
-  pointer → won't match. Har `N` ke liye alag instantiation (code bloat if many
-  sizes).
+- Decay nahi hota → `N` pata hai, range-for chalta hai, `sizeof` sahi aata hai.
+- ⚠️ Sirf compile-time size wale C arrays. `std::array`, `std::vector`, ya decay ho chuka
+  pointer — match nahi karenge. Aur har alag `N` ke liye function ki **alag copy** banti hai
+  (bahut saare sizes ho to code bloat).
 
-## 4. Modifying — `std::span<T>` (non-const)
+## 4. Badalna — `std::span<T>` (non-const)
 
 ```cpp
 void doubleAll(std::span<int> data) {
@@ -94,10 +100,10 @@ doubleAll(vec);
 
 ---
 
-## Output arrays — fill a caller's buffer
+## Output arrays — caller ka buffer bharna
 
 ```cpp
-// Caller ka buffer + capacity; kitne likhe woh return
+// Caller ka buffer + uski capacity; kitne characters likhe, woh return
 std::size_t formatHex(std::uint32_t value, std::span<char> out) {
     // out.size() se bounds check kar sakte ho
     ...
@@ -108,7 +114,8 @@ char buf[16];
 std::size_t n = formatHex(0xDEADBEEF, buf);
 ```
 
-`std::span<char>` = buffer + capacity ek unit mein → overrun check trivial.
+`std::span<char>` mein buffer aur uski capacity **ek saath** aati hai → "buffer ke bahar likh
+diya" wali galti rokna aasaan.
 
 ---
 
@@ -117,32 +124,46 @@ std::size_t n = formatHex(0xDEADBEEF, buf);
 ```cpp
 void f(int (*m)[COLS], std::size_t rows);      // COLS compile-time
 void f(std::span<int> flat, std::size_t rows, std::size_t cols);   // flat + dims
-void f(std::mdspan<int, std::dextents<std::size_t, 2>> m);          // C++23 -- cleanest
+void f(std::mdspan<int, std::dextents<std::size_t, 2>> m);          // C++23 -- sabse saaf
 ```
 
 ---
 
 ## Andar kya hota hai
 
-- `std::span` parameter → 2 register values (ptr, len). Function inside: pointer
-  deref + bounds from len. `-O2` inlines → same codegen as raw pointer loop.
-- Reference-to-array template → each `N` a separate function; `N` is a compile-
-  time constant so loop can fully unroll.
-- Pointer + size → identical to span minus the safety.
+- **Span parameter kaise pahunchta hai — platform pe depend karta hai.** Yeh GCC 16.2
+  (Windows) pe `-O2` assembly dekh ke check kiya:
+  ```
+  sum_span(std::span<int const>):        sum_ptr(int const*, unsigned long long):
+      mov rdx, QWORD PTR 8[rcx]   ; len       ; ptr pehle se rcx mein
+      mov rax, QWORD PTR [rcx]    ; ptr       ; len pehle se rdx mein
+  ```
+  **Windows x64 ABI** pe 16-byte struct ek **pointer ke through** jaata hai — function ko
+  shuru mein do memory loads karne padte hain. **Linux (SysV ABI)** pe wahi span do registers
+  mein aata hai. (Calling conventions: folder 34 file 07.)
+- Kya yeh fark matter karta hai? Naapa: 10M ints ka sum, dono functions `noinline`, `-O2`,
+  best of 7 — span 7.55–8.06 ms, pointer+len 7.69–7.92 ms (3 runs). **Koi fark nahi** — do
+  extra loads 10M-element loop ke saamne kuch nahi. Fark sirf tab dikh sakta hai jab ek bahut
+  chhota function **karodon baar** call ho aur inline na ho. Aam taur pe `-O2` chhote functions
+  ko inline kar deta hai, aur tab parameter passing hi gayab ho jaata hai.
+- Reference-to-array template → har `N` ek alag function; `N` compile-time constant hai, isliye
+  chhote `N` pe compiler loop poora khol (unroll) sakta hai.
+- Pointer + size → machine code span jaisa, bas size galat hone ki safety nahi.
 
-> **HFT relevance:** `std::span<const T>` / `std::span<T>` is the standard HFT
-> array-parameter type — zero cost, size always correct, works with stack
-> arrays, `std::array` pools, and `std::vector`. Wire decoders take
-> `std::span<const std::byte>` (buffer + length) so an OOB read is a `.size()`
-> check away, not a silent overrun. C-style `(ptr, len)` only at OS/library
-> boundaries.
+> **HFT relevance:** `std::span<const T>` / `std::span<T>` HFT mein array parameter ka standard
+> type hai — size hamesha sahi, aur stack arrays, `std::array` pools, `std::vector` sab ke saath
+> chalta hai. Wire decoders `std::span<const std::byte>` (buffer + length) lete hain, taaki
+> buffer ke bahar padhne se pehle ek `.size()` check ho — chupchaap overrun nahi. C-style
+> `(ptr, len)` sirf OS/library ki boundary pe. Aur "zero overhead" ka claim platform ke saath
+> naapo: Windows x64 pe span pointer se aata hai — hot, non-inlined, bahut chhote functions mein
+> woh dekhne layak ho sakta hai.
 
 ---
 
 ## Hands-on
 
 `examples/02_array_decay.cpp` (size param + reference-to-array),
-`examples/05_span_demo.cpp` (one function, all containers):
+`examples/05_span_demo.cpp` (ek function, saare containers):
 
 ```bash
 ./build.ps1 09-ARRAYS/examples/02_array_decay.cpp
@@ -153,31 +174,31 @@ void f(std::mdspan<int, std::dextents<std::size_t, 2>> m);          // C++23 -- 
 
 ## ⚠️ Traps
 
-### Trap 1 — `void f(int a[])` and expecting size
+### Trap 1 — `void f(int a[])` likh ke size ki ummeed
 ```cpp
 void f(int a[]) { /* size? nahi hai */ }
 ```
 
-### Trap 2 — `std::span` outliving its data
+### Trap 2 — `std::span` apne data se zyada jee gaya
 ```cpp
 std::span<int> s;
-{ std::vector<int> v = {1,2,3}; s = v; }   // ⚠️ v gone -> s dangling
+{ std::vector<int> v = {1,2,3}; s = v; }   // ⚠️ v khatam -> s dangling
 ```
 
-### Trap 3 — reference-to-array with `std::array`
+### Trap 3 — reference-to-array ko `std::array` dena
 ```cpp
 template <std::size_t N> void f(int (&a)[N]);
-std::array<int, 5> a;  f(a);    // ❌ no match -- std::array is not int[N]. Use f(a.data() ...) or span
+std::array<int, 5> a;  f(a);    // ❌ match nahi -- std::array int[N] nahi hai. span use karo
 ```
 
-### Trap 4 — passing `std::vector` by value "to be safe"
+### Trap 4 — "safe rehne ke liye" `std::vector` by value
 ```cpp
-void f(std::vector<int> v);     // ⚠️ full copy. std::span<const int> or const&
+void f(std::vector<int> v);     // ⚠️ poori copy. std::span<const int> ya const& lo
 ```
 
-### Trap 5 — output buffer without capacity
+### Trap 5 — output buffer bina capacity ke
 ```cpp
-void format(std::uint32_t v, char* out);   // ⚠️ overrun risk. std::span<char> out
+void format(std::uint32_t v, char* out);   // ⚠️ overrun ka khatra. std::span<char> out lo
 ```
 
 ---
@@ -186,11 +207,11 @@ void format(std::uint32_t v, char* out);   // ⚠️ overrun risk. std::span<cha
 
 | ❌ Galat | ✅ Sahi |
 |---|---|
-| "`int a[]` param array leta hai" | Pointer — size lost |
-| "`std::span` copy hota hai (16 bytes)" | 2 registers — zero overhead |
-| "Reference-to-array `std::array` pe chalega" | Nahi — only C arrays. `std::span` for both |
-| "Output buffer ke saath capacity optional" | `std::span<char>` — overrun check |
-| "`std::vector` by value safe hai" | Full copy — `const&` / `span` |
+| "`int a[]` parameter array leta hai" | Pointer leta hai — size kho jaati hai |
+| "`std::span` hamesha do registers mein jaata hai" | Linux (SysV) pe haan; Windows x64 pe pointer ke through — naapne pe loop mein fark nahi mila |
+| "Reference-to-array `std::array` pe chalega" | Nahi — sirf C arrays. Dono ke liye `std::span` |
+| "Output buffer ke saath capacity dena optional hai" | `std::span<char>` do — overrun check aasaan |
+| "`std::vector` by value safe hai" | Poori copy — `const&` / `span` lo |
 
 ---
 
@@ -200,20 +221,28 @@ void format(std::uint32_t v, char* out);   // ⚠️ overrun risk. std::span<cha
    `template<size_t N> sum(const int(&)[N])`, `sum(const array<int,10>&)` — sab
    likho. Kaunsa `std::vector` pe chalega? Kaunsa C array pe? `std::array` pe?
 
-2. **`std::span` modify:** `void addOne(std::span<int>)` — C array, `std::array`,
-   `std::vector` teenon pe. Original badla?
+2. **`std::span` se badlo:** `void addOne(std::span<int>)` — C array, `std::array`,
+   `std::vector` teenon pe chalao. Original data badla?
 
 3. **Output buffer:** `std::size_t toBinary(std::uint8_t v, std::span<char> out)`
-   — `v` ka binary string `out` mein, bits count return. `out` chhota ho to?
+   — `v` ka binary string `out` mein likho, bits ki ginti return karo. `out` chhota ho to?
 
-4. **Dangling span:** ek function jo `std::span<int>` return kare local array ka.
-   `-Wall` warning? Chalao (UB).
+4. **Dangling span:** ek function likho jo local array ka `std::span<int>` return kare.
+   `-Wall` warning deta hai? Chalao (UB).
 
-5. **2D param:** `int (*m)[4]` param wala `rowSum` likho, `int grid[3][4]` pe use.
-   Phir flat `std::span<int>` + `cols` param wala.
+5. **2D param:** `int (*m)[4]` parameter wala `rowSum` likho, `int grid[3][4]` pe use karo.
+   Phir flat `std::span<int>` + `cols` parameter wala version.
 
-6. **Bench:** `sum(span<const int>)` vs `sum(const int*, size_t)` — 10M ints,
-   `-O2`. Farq? (Nahi — same codegen.)
+6. **Bench + assembly:** `sum(span<const int>)` vs `sum(const int*, size_t)` — 10M ints,
+   `-O2`, dono pe `[[gnu::noinline]]`. Time lo, phir `-S` se function ki pehli lines dekho.
+   <details><summary>Answer</summary>
+
+   Is box (GCC 16.2, Windows) pe time mein koi fark nahi mila (7.55–8.06 ms vs 7.69–7.92 ms).
+   Assembly mein span version shuru mein `rcx` se ptr aur len **load** karta hai (Windows x64
+   ABI, struct pointer se aata hai); pointer version ko dono seedhe `rcx`/`rdx` mein milte hain.
+   Linux pe span bhi registers mein aata. Sabak: ABI ka fark asli hai, par is loop mein
+   naapne layak nahi.
+   </details>
 
 ---
 
@@ -225,6 +254,7 @@ void format(std::uint32_t v, char* out);   // ⚠️ overrun risk. std::span<cha
 4. `std::span<T>` vs `std::span<const T>` — kab kaunsa?
 5. Output buffer parameter — safe design?
 6. `std::span` kis situation mein dangling ho sakta hai?
+7. `std::span` parameter Windows x64 aur Linux pe alag tarah kyun pass hota hai? Kab matter karta hai?
 
 ---
 

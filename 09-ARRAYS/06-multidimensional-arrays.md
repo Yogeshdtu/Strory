@@ -130,25 +130,30 @@ Verbose hai par safe. Ya `std::mdspan` (C++23) ek flat buffer pe 2D view.
 
 ## Andar kya hota hai
 
-- `int m[3][4]` = 48 contiguous bytes, ek stack frame slot. No pointers, no
-  indirection — `m[i][j]` = `base + (i*4 + j)*4`, ek scaled load.
-- `int**` = pointer to array of pointers, har `p[i]` ek alag heap block → **2
-  indirections** per access + har row alag cache line/page.
-- Row-major traversal → prefetcher happy → memory-bound loop runs at bandwidth.
-- Column-major → cache line ka 1/16 use → 16x memory traffic + TLB misses.
+- `int m[3][4]` = 48 bytes ek saath, stack frame mein ek jagah. Na koi pointer, na
+  indirection — `m[i][j]` ka matlab `base + (i*4 + j)*4` pe ek scaled load.
+- `int**` = pointers ke array ka pointer, aur har `p[i]` ek **alag heap block** → har
+  access pe **do indirections**, aur har row alag cache line / alag page pe.
+- Row-major traversal mein data ek seedhi line mein aata hai → prefetcher agla data pehle
+  se cache mein le aata hai → loop ko memory ka intezaar kam karna padta hai.
+- Column-major mein har step `COLS` elements aage koodta hai. Ek cache line (64 bytes) mein
+  16 `int` aate hain; row-major ek line se 16 elements padhta hai, column-major (jab `COLS`
+  bada ho) aksar sirf ek — yaani **andaazan** kai guna zyada cache lines, aur bade matrix pe
+  TLB misses bhi. Asli **naapa hua** farq folder 07 file 09 mein ~8x tha — andaaza aur naap
+  alag hote hain, isliye naap pe bharosa karo.
 
-> **HFT relevance:** Multi-level structures (order book: price levels × orders,
-> or a correlation matrix) **flat contiguous buffers** hain with manual
-> `i*stride + j` indexing — never `vector<vector<T>>` or `T**` (scattered, cache
-> death). Traversal always in memory order. `std::mdspan` gives a clean 2D API
-> over a flat buffer with zero overhead. Folders 32, 39.
+> **HFT relevance:** Kai level wala data (order book: price levels × orders, ya ek
+> correlation matrix) **flat contiguous buffer** mein rakha jaata hai, `i*stride + j` se
+> index karke — `vector<vector<T>>` ya `T**` kabhi nahi (bikhri memory, cache ki maut).
+> Traversal hamesha memory ke order mein. `std::mdspan` flat buffer pe saaf 2D API deta hai,
+> bina extra kharche ke (folder 22 file 15). Folders 32, 39.
 
 ---
 
 ## Hands-on
 
-`examples/03_2d_arrays.cpp` — row-major layout with addresses, `m[i]` as 1D,
-flat indexing:
+`examples/03_2d_arrays.cpp` — addresses ke saath row-major layout, `m[i]` ko 1D ki
+tarah use karna, aur flat indexing:
 
 ```bash
 ./build.ps1 09-ARRAYS/examples/03_2d_arrays.cpp
@@ -168,7 +173,7 @@ for (j) for (i) sum += m[i][j];    // ⚠️ ~8x slower
 void f(int** m);   f(realMatrix);   // ❌ int[3][4] -> int(*)[4], NOT int**
 ```
 
-### Trap 3 — flat init `{1,2,3,4,5}` for `[3][4]`
+### Trap 3 — `[3][4]` ko flat `{1,2,3,4,5}` se init karna
 ```cpp
 int m[3][4] = {1,2,3,4,5};   // row 0 full, row 1 = {5,0,0,0}, row 2 = {0,0,0,0}
 ```
@@ -179,10 +184,10 @@ void f(int m[][]);       // ❌ -- COLS chahiye stride ke liye
 int m[][3];              // ✅ ROWS deduce, COLS given
 ```
 
-### Trap 5 — `vector<vector<int>>` for performance-critical grid
+### Trap 5 — performance wale grid ke liye `vector<vector<int>>`
 ```cpp
-std::vector<std::vector<int>> grid(R, std::vector<int>(C));   // ⚠️ R+1 allocations, scattered
-std::vector<int> grid(R * C);                                  // ✅ one block
+std::vector<std::vector<int>> grid(R, std::vector<int>(C));   // ⚠️ R+1 allocations, bikhre hue
+std::vector<int> grid(R * C);                                  // ✅ ek hi block
 ```
 
 ---
@@ -194,7 +199,7 @@ std::vector<int> grid(R * C);                                  // ✅ one block
 | "`int m[3][4]` = 3 alag arrays" | Ek 48-byte contiguous block |
 | "`int**` = 2D array" | Scattered rows; `int(*)[4]` = decayed 2D array |
 | "Traversal order se farq nahi" | Row vs column ~8x (folder 07) |
-| "`vector<vector<int>>` fast 2D" | Scattered + extra allocs; use flat `vector<int>` |
+| "`vector<vector<int>>` tez 2D hai" | Bikhri memory + extra allocations; flat `vector<int>` lo |
 | "2D C array ke dimensions runtime ho sakte" | Compile-time. Runtime → flat `vector` + stride |
 
 ---

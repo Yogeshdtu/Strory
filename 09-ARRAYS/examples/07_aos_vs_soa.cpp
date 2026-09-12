@@ -5,7 +5,7 @@
 //   BENCHMARK -> -O2 ZAROORI.
 //   g++ -std=c++20 -O2 07_aos_vs_soa.cpp -o aos && ./aos
 // ============================================================
-// Ek "entity" mein 6 fields. 10 lakh entities.
+// Ek "entity" mein 6 fields. 40 lakh entities (N = 4'000'000).
 //
 //   AoS : struct Entity { x, y, z, vx, vy, vz };  vector<Entity>
 //         -> memory: [x0 y0 z0 vx0 vy0 vz0][x1 y1 z1 ...] ...
