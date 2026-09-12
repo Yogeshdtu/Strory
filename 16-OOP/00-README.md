@@ -45,8 +45,14 @@ jaata hai, aur aapko pata hona chahiye kyun.
 2 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE** (Batch 6 — PHASE 6). 15 lessons + exercises + 8 compile-verified
+examples. Inheritance (access modes, layout, name hiding), ctor/dtor order (+
+virtual-call-in-ctor trap), virtual functions, **vtable/vptr deep dive**,
+`override`/`final`, abstract classes/interfaces, **virtual destructors** (leak
+demo), object slicing, multiple inheritance, virtual inheritance/diamond,
+RTTI/`dynamic_cast`, **virtual dispatch cost (measured ~10x)**, **CRTP** (zero-cost
+static poly), composition vs inheritance, SOLID (+ HFT reconciliation). Measured:
+virtual ~23 ns vs direct/CRTP ~2.2 ns vs `variant` ~16 ns per call.
 
 ## Next
 → [`../17-RAII/00-README.md`](../17-RAII/00-README.md)

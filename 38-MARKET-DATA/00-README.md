@@ -48,8 +48,14 @@ baaki sab bekaar hai.
 3–4 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE (Batch 10 part 3 — PHASE 26).** 16 lessons (`01`–`16`) +
+`17-exercises.md` + 10 examples + shared `wire_protocol.hpp`,
+`./build.ps1 folder 38-MARKET-DATA` → 10/10 OK. Poora CLAUDE.md HFT
+process (build simple → measure → optimize → re-benchmark → explain)
+end-to-end applied: naive parser p99.9 771.5 ns vs zero-copy 40.1 ns
+(**22.2× measured**), byteswap cost measured (0.753 ns/swap — SBE ka
+native-endian choice ki honest re-explanation), A/B arbitration measured
+(**49.5× loss reduction, zero round-trips**), gap detection sanity-verified.
 
 ## Next
 → [`../39-ORDER-BOOK/00-README.md`](../39-ORDER-BOOK/00-README.md)

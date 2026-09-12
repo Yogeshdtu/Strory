@@ -35,9 +35,9 @@ Yeh programming ke 5 building blocks mein se teesra hai (yaad hai folder 01 less
 4–5 din
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega. Tab tak pichle folders ke exercises karo,
-kyunki yeh sab unhi pe khada hoga.
+✅ **COMPLETE** (Batch 3). 8 lessons + exercises + 4 compile-verified examples.
+Branch-prediction benchmark real numbers ke saath (`04_branch_benchmark.cpp` —
+sorted vs unsorted ~7x, GCC 15.1 `-O2`).
 
 ## Next
 → [`../07-LOOPS/00-README.md`](../07-LOOPS/00-README.md)

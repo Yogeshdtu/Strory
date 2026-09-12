@@ -49,26 +49,35 @@ Yeh 30 requirements user ne di thi. Inhe follow karna **mandatory** hai:
 
 ## 3. Kya ban chuka hai (STATUS)
 
-### ✅ COMPLETE — folders `00` se `05` tak
+### 🏁 COURSE STRUCTURALLY COMPLETE — saare 50 folders (`00`–`49`) ban chuke
 
-| Folder | Lessons | Examples | Phase |
-|---|---|---|---|
-| `00-START-HERE/` | 9 | — | roadmap, setup, audits, glossary |
-| `01-PROGRAMMING-BASICS/` | 13 | 5 | PHASE 0 |
-| `02-CPP-FIRST-STEPS/` | 12 | 7 | PHASE 1 |
-| `03-VARIABLES-DATA-TYPES/` | 17 | 10 | PHASE 2 |
-| `04-INPUT-OUTPUT/` | 13 | 8 | PHASE 2 |
-| `05-OPERATORS/` | 12 | 6 | PHASE 2 |
+Batch 1–11 done (PHASE 0–34), **including the final gap audit**. Har folder ka
+`00-README.md` `✅ COMPLETE` padhta hai; `WHAT-I-STILL-NEED-TO-LEARN.md` ke
+saare 5 sections **NONE** padhte hain; genuinely-specialist topics explicit
+SPECIALIZED list mein hain.
 
-**Total: ~136,000 words, 36 example files (sab compile-verified).**
+- **PHASE 0–2** — `01`–`05` (programming basics → operators)
+- **PHASE 3–13** — `06`–`23` (conditions → error handling)
+- **PHASE 14–23** — `24`–`35` (compilation/object-model/concurrency/atomics/
+  lock-free · Linux/networking/CPU/cache/compiler-opt/asm/profiling)
+- **PHASE 24–32** — `36`–`44` (low-latency C++ + the HFT build track; `44` =
+  the `MiniHftEngine` capstone)
+- **PHASE 33** — `45`–`49` (debugging · interview-prep · 250-problem practice
+  bank · 13 cheatsheets · 17 end-to-end projects)
+- **PHASE 34** — the final gap audit
 
-### ⏳ PENDING — folders `06` se `49` tak
+**Repo:** `./build.ps1 checkall` → **378 `.cpp` scanned, 350 OK, 0 real fail,
+1 expected (`broken_on_purpose`), 27 skipped (`*.linux.cpp`)**. Mojibake: 0.
 
-In sab mein **`00-README.md` already mojood hai** jisme poora syllabus likha hai —
-file list, har file ka topic, examples ki list, prerequisites, aur time estimate.
+**Ab kya:** ab yeh *maintenance / deepening* mode mein hai. Naye folders nahi
+banane. Jo aaye:
+- **Fixes** — koi example toota / benchmark drift / factual error → fix + re-verify.
+- **Deepening** — user ek topic pe aur maange → us folder mein lesson add karo,
+  same style, `make folder` se verify, audit files touch karo.
+- **Section 8 batch plan poora ho chuka** — reference ke liye rakha hai.
 
-**Naya folder banate waqt sabse pehle uska `00-README.md` padho** — woh aapka spec hai.
-Usme jo file names aur topics likhe hain, unhi ko banao.
+Original build workflow (agar naya content likhna pade) neeche sections 5–9 mein
+hai. Har folder ka `00-README.md` uska spec tha.
 
 ---
 
@@ -229,28 +238,23 @@ list mein hon (silently chhode nahi).
 
 ---
 
-## 8. Agla kaam (batch plan)
+## 8. Batch plan — ✅ SAB DONE (reference)
 
-| Batch | Folders | Phase |
-|---|---|---|
-| **3 (AGLA)** | `06-CONDITIONS`, `07-LOOPS`, `08-FUNCTIONS` | PHASE 3 |
-| 4 | `09-ARRAYS`, `10-STRINGS`, `11-STRUCTS` | PHASE 4 |
-| 5 | `12-POINTERS`, `13-REFERENCES`, `14-MEMORY` | PHASE 5 |
-| 6 | `15-CLASSES`, `16-OOP`, `17-RAII`, `18-COPY-MOVE` | PHASE 6–8 |
-| 7 | `19-STL`, `20-DSA`, `21-TEMPLATES`, `22-MODERN-CPP`, `23-ERRORS` | PHASE 9–13 |
-| 8 | `24`–`28` (build, object model, concurrency, atomics, lock-free) | PHASE 14–17 |
-| 9 | `29`–`35` (Linux, networking, CPU, cache, compiler, asm, profiling) | PHASE 18–23 |
-| 10 | `36-LOW-LATENCY` + HFT track `37`–`44` | PHASE 24–32 |
-| 11 | `45`–`49` + final gap audit | PHASE 33–34 |
+| Batch | Folders | Phase | Status |
+|---|---|---|---|
+| 1–2 | `00`–`05` (basics → operators) | PHASE 0–2 | ✅ |
+| 3 | `06-CONDITIONS`, `07-LOOPS`, `08-FUNCTIONS` | PHASE 3 | ✅ |
+| 4 | `09-ARRAYS`, `10-STRINGS`, `11-STRUCTS` | PHASE 4 | ✅ |
+| 5 | `12-POINTERS`, `13-REFERENCES`, `14-MEMORY` | PHASE 5 | ✅ |
+| 6 | `15-CLASSES`, `16-OOP`, `17-RAII`, `18-COPY-MOVE` | PHASE 6–8 | ✅ |
+| 7 | `19-STL`, `20-DSA`, `21-TEMPLATES`, `22-MODERN-CPP`, `23-ERRORS` | PHASE 9–13 | ✅ |
+| 8 | `24`–`28` (build, object model, concurrency, atomics, lock-free) | PHASE 14–17 | ✅ |
+| 9 | `29`–`35` (Linux, networking, CPU, cache, compiler, asm, profiling) | PHASE 18–23 | ✅ |
+| 10 | `36-LOW-LATENCY` + HFT track `37`–`44` (`44` = capstone) | PHASE 24–32 | ✅ |
+| 11 | `45`–`49` (debugging · interview-prep · coding-problems · cheatsheets · projects) + **final gap audit** | PHASE 33–34 | ✅ |
 
-### Batch 3 mein khaas dhyaan
-
-- `08-FUNCTIONS` mein **call stack deep dive** — stack frames, prologue/epilogue,
-  return address. Yeh pointers (12) aur recursion ka foundation hai.
-- `07-LOOPS` mein **cache locality** ka pehla proper introduction — row-major vs
-  column-major, measured benchmark ke saath.
-- `06-CONDITIONS` mein **branch prediction ka pehla parichay** — sorted vs unsorted
-  array benchmark (classic demo).
+**Course structurally complete.** Detail: `00-START-HERE/BUILD-STATUS.md`
+(reverse-chronological per-batch log). Ab naye folders nahi — dekho section 3.
 
 ---
 

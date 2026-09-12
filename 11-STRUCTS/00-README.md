@@ -44,8 +44,11 @@ ka sabse bada lever hai.
 1–2 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE** (Batch 4 — PHASE 4 ka aakhri folder). 12 lessons + exercises + 8
+compile-verified examples. Highlights: **padding deep dive** (member reorder →
+33–45% smaller, measured), packed wire structs + `memcpy` decode, **AoS vs SoA**
+(~1.6x–4x measured), `union`/`std::bit_cast`, `std::variant`, `enum class`,
+bitfields, `struct` vs `class`.
 
 ## Next
 → [`../12-POINTERS/00-README.md`](../12-POINTERS/00-README.md)

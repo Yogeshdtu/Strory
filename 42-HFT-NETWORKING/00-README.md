@@ -45,8 +45,26 @@ Wire se wire tak. Yahan har nanosecond count karta hai — aur kernel aapka dush
 3 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE** — 17 lessons (`01`–`17`) + 8 examples (`.hpp`/`.sh` +
+6× `.linux.cpp`). `./build.ps1 folder 42-HFT-NETWORKING` → **0 real
+fail, 6 correctly SKIPPED (linux-only)**.
+
+This is the first HFT-track folder where MOST of the code is genuinely
+Linux-only (multicast sockets, `SO_BUSY_POLL`, `SO_TIMESTAMPING`,
+`MSG_ERRQUEUE`, TCP order-gateway tuning) — consistent with
+29-LINUX-SYSTEMS/30-NETWORKING's established `.linux.cpp` pattern, since
+this dev box is Windows/MinGW with no WSL installed. Every example was
+written carefully (reusing 30's already-verified structural patterns),
+hand-reviewed for the usual pitfalls (sign-compare, unbounded blocking
+recv, empty-vector UB — several real ones caught and fixed), and each
+carries an explicit `EXPECTED (... NAHI napa gaya)` block rather than
+fabricated "measured" numbers. Central technical contribution: an
+`INetworkReceiver` abstraction (`08_bypass_abstraction.hpp`) making the
+kernel-socket vs Onload/ef_vi/DPDK choice a config-time decision, not an
+application rewrite; a TX+RX same-clock-domain hardware-timestamping
+technique that fixes 30/09's "different epochs, relative-only" limitation;
+and a full wire-to-wire (tick-to-trade) breakdown across 2 network hops
++ internal processing, all kernel-timestamped.
 
 ## Next
 → [`../43-HFT-OPTIMIZATION/00-README.md`](../43-HFT-OPTIMIZATION/00-README.md)

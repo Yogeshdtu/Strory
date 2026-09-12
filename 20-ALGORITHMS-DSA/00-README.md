@@ -47,8 +47,25 @@ Big-O se zyada memory access pattern matter karta hai.
 4–6 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE (Batch 7 — PHASE 10).** 17 lessons (`01`–`17`) + `18-problem-sets.md`
++ 8 verified examples. Sab `.cpp` `-Wall -Wextra -Wpedantic -Wshadow -Wconversion
+-Wsign-conversion` pe clean (`./build.ps1 folder 20-ALGORITHMS-DSA`). Benchmarks
+`-O2` pe chalaye, **real numbers** lessons mein:
+
+- `01_sorting_all`: O(n²) sorts (n=20k) bubble ~730 / selection ~586 / insertion
+  ~58 ms vs `std::sort` ~1.1 ms; O(n log n) (n=2M) merge ~262 / quick ~188 / heap
+  ~390 vs `std::sort` ~163 ms. (Quicksort median-of-3 bug found + fixed during
+  dev — picked the max, not the median → O(n²) on sorted input.)
+- `03_linked_list`: sum 5M-node list ~70 ms vs 5M-int vector ~1.7 ms → **~40×**
+  (same O(n)).
+- `04_hash_table`: open-addressing map build ~66 / lookup ~45 ns/op vs
+  `std::unordered_map` ~295 / ~83 ns/op.
+- `07_dp_problems`: fib(40) naive ~244 ms vs memoized ~0.02 ms → **~11,500×**.
+- `08_flat_vs_pointer`: identical O(n) tree traversal — flat array **4–11×**
+  faster than a pointer tree (cache).
+
+**Theme:** Big-O rules out disasters; cache behaviour + branch predictability +
+bounded worst case decide the winner. `17-cache-aware-dsa.md` is the synthesis.
 
 ## Next
 → [`../21-TEMPLATES/00-README.md`](../21-TEMPLATES/00-README.md)

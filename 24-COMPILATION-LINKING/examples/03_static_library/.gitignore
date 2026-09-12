@@ -1,0 +1,4 @@
+*.o
+*.a
+app
+app.exe

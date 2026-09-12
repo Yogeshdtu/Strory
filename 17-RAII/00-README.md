@@ -42,8 +42,13 @@ Yeh aapne folder 02 lesson 06 mein scope ke saath dekha tha. Ab poora.
 1–2 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE** (Batch 7 — PHASE 7). 11 lessons + exercises + 7 compile-verified
+examples. What-is-a-resource, RAII idiom, why it works (stack unwinding +
+exception safety + the 5 gaps where dtors don't run), `unique_ptr` (zero-cost),
+`shared_ptr` (atomic refcount + control block), `weak_ptr` (cycles), custom
+deleters (EBO / size table), ownership semantics, RAII wrappers for fds/locks/
+sockets, **Rule of Zero**, smart-pointer performance. Measured: `unique_ptr` ==
+raw (0.99x); `shared_ptr` copy ~**90x** a raw copy (`07_smartptr_benchmark.cpp`).
 
 ## Next
 → [`../18-COPY-MOVE/00-README.md`](../18-COPY-MOVE/00-README.md)

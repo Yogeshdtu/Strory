@@ -42,8 +42,11 @@ sirf code copy karoge, design nahi kar paoge.
 2 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE (Batch 10 part 2 — PHASE 25).** 16 lessons (`01`–`16`) +
+`17-exercises.md` + 4 examples, `./build.ps1 folder 37-HFT-FUNDAMENTALS`
+→ 4/4 OK. Yeh folder **domain concepts** hai (koi latency measurement
+nahi — woh 38-44 mein hoga jab production-grade code banega). Strategy
+lesson (10) explicitly "concepts only, no alpha" hai.
 
 ## Next
 → [`../38-MARKET-DATA/00-README.md`](../38-MARKET-DATA/00-README.md)

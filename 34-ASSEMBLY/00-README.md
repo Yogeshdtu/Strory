@@ -41,8 +41,25 @@ kar sako ki compiler ne wahi kiya jo aap chahte the.
 2 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE (Batch 9 — PHASE 22).** 13 lessons (`01`–`12` + `13-exercises.md`)
++ 7 examples (5 `.cpp` + `01_simple_functions.s` + `07_asm_puzzles.md`).
+
+- `./build.ps1 folder 34-ASSEMBLY` → **5/5 OK** (the `.cpp` files) under strict flags.
+- Focus: **reading** assembly for verification / optimization / debugging —
+  not writing it. x86-64 registers + ABI (Win64 on this box, SysV on godbolt),
+  AT&T vs Intel, the ~20 common instructions, addressing modes, stack frames,
+  calling conventions, pattern recognition (loop / `if` / `switch` / virtual
+  call / division / constant-fold), SIMD asm, inline asm (+ when NOT to),
+  `rdtsc` timing, disassembly tools (`objdump -dS`, `perf annotate`, `gdb`,
+  `addr2line`, `llvm-mca`).
+- Measured (`05_rdtsc.cpp`, this box ~2 GHz): calibration **~2.0 ticks/ns**;
+  `__rdtsc` self-cost **~1 tick (~0.5 ns)**; `lfence;rdtsc;lfence` /
+  `rdtscp+lfence` **~20 ticks (~10 ns)**; 100M dependent-LCG loop **~1.98
+  ticks/iter**. `06_inline_asm.cpp`: CPUID vendor `AuthenticAMD`, barrier
+  emits zero instructions.
+- Example notes: `02`/`03`/`04` drop `keep()` (non-static functions emit
+  standalone asm anyway; a `keep()` on a folded constant hit "impossible
+  constraint" at `-O2`).
 
 ## Next
 → [`../35-PROFILING-BENCHMARKING/00-README.md`](../35-PROFILING-BENCHMARKING/00-README.md)

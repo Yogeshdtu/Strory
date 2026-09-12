@@ -48,8 +48,32 @@ sahi measure karna sikhaata hai — jo har optimization ka pehla step hai.
 3 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE (Batch 9 — PHASE 23).** 16 lessons (`01`–`16`) + `17-exercises.md`
++ 8 examples. `./build.ps1 folder 35-PROFILING-BENCHMARKING` → **5/5 OK**
+(the `.cpp` files) under strict flags.
+
+- **Lessons** — `01` why measure (Amdahl, premature opt, throughput vs latency)
+  · `02` `<chrono>` (steady vs system vs hires, resolution, self-cost)
+  · `03` `rdtsc` (fencing, calibration, core-hop — builds on 34/11)
+  · `04` statistics (mean lies, median/min/σ, bimodal) · `05` percentiles
+  (nearest-rank, nines, fan-out amplification, coordinated omission)
+  · `06` jitter (SW + HW/firmware sources, isolcpus/nohz_full, "quiet core")
+  · `07` histograms (log-linear, HdrHistogram, CDF plots) · `08` Google
+  Benchmark (State loop, DoNotOptimize, fixtures) · `09` benchmark pitfalls
+  (DCE / const-fold / hoist / cold start / alignment / frequency / denormals)
+  · `10` `perf` basics (stat/record/report, IPC, top-down) · `11` `perf`
+  advanced (annotate, PEBS/IBS `:pp`, `perf mem`/`c2c`, LBR) · `12` flame
+  graphs · `13` Valgrind (cachegrind `Ir`, callgrind, massif, DHAT) · `14`
+  VTune / top-down (bandwidth vs latency bound, `toplev`) · `15` sanitizers
+  (ASan/UBSan/TSan/MSan) · `16` production measurement (inline rdtsc + per-
+  thread histogram, SPSC ring, sampling, white vs black box).
+- **Examples** — `01_timing_methods` · `02_percentiles` · `03_jitter_measure`
+  · `04_benchmark_mistakes` (6 BUG/FIX pairs) · `05_google_benchmark/`
+  (`minibench.hpp` shim + `bench.cxx` + build scripts — one-line switch to the
+  real library) · `06_perf_workflow.sh` + `07_flamegraph.sh` (Linux-only,
+  self-contained) · `08_latency_recorder` (HdrHistogram-lite: ~2 ns/record,
+  29.5 KB, ≤1.3% percentile error). Measured this box (~2 GHz Zen 2, SSE2,
+  unpinned Windows) — ratios/shapes port, tail absolutes don't.
 
 ## Next
 → [`../36-LOW-LATENCY-CPP/00-README.md`](../36-LOW-LATENCY-CPP/00-README.md)

@@ -42,8 +42,12 @@ Aur yahan **allocation cost** samjhenge — jo HFT low-latency ka core problem h
 1–2 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE** (Batch 5 — PHASE 5). 11 lessons + exercises + 7 compile-verified
+examples. Memory layout, stack/heap deep dive, `new`/`delete`, leaks, UAF/double-
+free, `static`/`thread_local`, **allocation cost** (measured), fragmentation,
+placement-new + arena/pool intro, aur memory tools (ASan/Valgrind/heaptrack +
+MinGW alternatives). Measured: stack vs heap **~83x** (`02`), allocation tail
+p50 ~50 ns / max ~1 ms (`06`), fixed pool vs `new` **~190x** (`07`).
 
 ## Next
 → [`../15-CLASSES/00-README.md`](../15-CLASSES/00-README.md)

@@ -39,9 +39,9 @@ foundation hai.
 5–7 din
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega. Tab tak pichle folders ke exercises karo,
-kyunki yeh sab unhi pe khada hoga.
+✅ **COMPLETE** (Batch 3). 9 lessons + exercises + 6 compile-verified examples.
+Measured benchmarks: range-`for` copy cost ~50x (`02`), cache locality row vs
+column ~8x (`05`), loop unroll flag-dependent (`06`) — sab GCC 15.1 pe real numbers.
 
 ## Next
 → [`../08-FUNCTIONS/00-README.md`](../08-FUNCTIONS/00-README.md)

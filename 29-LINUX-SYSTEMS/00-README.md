@@ -52,8 +52,20 @@ kitni mehngi hai.
 3–4 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE** (Batch 9 — PHASE 18). 18 lessons + `19-exercises.md` + 10
+examples.
+
+- Examples sab **`*.linux.cpp`** (Linux-only syscalls: `mmap`, `fork`,
+  `sched_setaffinity`, `shm_open`, `mlockall`, `MAP_HUGETLB`, `SCHED_FIFO`).
+  Is Windows/MinGW box pe compile nahi hote — `./build.ps1 folder
+  29-LINUX-SYSTEMS` inhe `SKIP (linux-only)` karta hai (10/10 skipped, 0 fail).
+  Linux/WSL pe verify karo.
+- Benchmark numbers har example ke `EXPECTED OUTPUT` block mein **TYPICAL Linux
+  x86-64** figures hain, explicitly "not measured on your machine" labelled
+  (CLAUDE.md Rule 2 — is box pe Linux code chal hi nahi sakta, to fabricate
+  karke "measured" nahi bola). Asli numbers `19-exercises.md` Part D mein khud
+  Linux pe lo.
+- `build.ps1` mein `.linux.cpp` skip-hook add kiya gaya (folder + checkall).
 
 ## Next
 → [`../30-NETWORKING/00-README.md`](../30-NETWORKING/00-README.md)

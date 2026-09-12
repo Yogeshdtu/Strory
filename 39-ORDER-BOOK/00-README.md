@@ -49,8 +49,15 @@ Hum ise **teen baar** banayenge — naive, better, aur optimized — aur har baa
 4 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE (Batch 10 part 4 — PHASE 27).** 17 lessons (`01`–`17`) + 9
+examples + 5 shared headers, `./build.ps1 folder 39-ORDER-BOOK` → 9/9 OK.
+Poora "3 versions, har ek measure karo" process complete: V1 (`std::map`)
+→ V2 (sorted vector — **measured OVERALL WORSE than V1**, a genuine Rule-2
+regression, root-caused) → V3 (flat array + intrusive list + flat hash —
+wins every metric, p99.9 ratio ~2-3× vs V1, ~4× vs V2). All three verified
+behavior-identical (cross-version equivalence, 20000+ checkpoints) and
+fuzz-tested (30000 ops, ~3000 injected edge cases, 0 disagreements against
+an independent reference model).
 
 ## Next
 → [`../40-MATCHING-ENGINE/00-README.md`](../40-MATCHING-ENGINE/00-README.md)

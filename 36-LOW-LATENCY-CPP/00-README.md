@@ -63,8 +63,47 @@ ke saath **trade-off** bhi padhenge — kab use karo aur kab NAHI.
 4 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE (Batch 10 — PHASE 24).** 24 lessons (`01`–`24`) + `25-exercises.md`
++ 12 examples. `./build.ps1 folder 36-LOW-LATENCY-CPP` → **12/12 OK** under
+strict flags. Benchmarks measured at `-O2` on an AMD Zen 2 ~2 GHz box (SSE2,
+Windows/MinGW, unpinned — ratios/shapes port, tail absolutes don't).
+
+- **Lessons** — `01` latency/throughput/jitter (three axes, budget thinking)
+  · `02` tail latency (p99.9 is the scorecard; C++ has no GC) · `03` jitter
+  sources (a hot-path audit checklist; eliminate/bound/make-rare) · `04`
+  allocation avoidance (measured tail; the hidden allocations) · `05`
+  pre-allocation (warm-up vs steady state; prove zero-alloc) · `06` memory
+  pools (build + benchmark a `FixedPool`) · `07` object pools (construct vs
+  recycle) · `08` arenas / monotonic buffer / PMR · `09` custom allocators
+  (PMR vs classic `Allocator<T>`) · `10` cache locality (hot/cold, AoS/SoA,
+  flat) · `11` false sharing (measured 3.5–44×; a jitter source) · `12`
+  branch-free (when it wins, when it *loses*; `-O2` if-conversion) · `13`
+  virtual dispatch elimination (CRTP/variant/switch/table, homo vs hetero,
+  measured) · `14` `std::function` cost (`function_ref`, the SBO cliff) ·
+  `15` ring buffers (pow-2, monotonic counters, release/acquire, cached
+  index) · `16` batching (throughput vs head-of-line; opportunistic) · `17`
+  syscall avoidance (busy-poll cost, `io_uring`+`SQPOLL`, kernel bypass) ·
+  `18` page-fault avoidance (`MAP_POPULATE`/`mlockall`/touch/stack; huge
+  pages & THP jitter) · `19` CPU pinning (`isolcpus`/`nohz_full`/`rcu_nocbs`,
+  SMT, NUMA, `SCHED_FIFO` hazard) · `20` cache warming (cold start vs decay;
+  dry-run) · `21` I-cache (Frontend Bound; hot/cold split; PGO/LTO/BOLT) ·
+  `22` zero-copy (views/spans/overlays; `from_chars`; the 4 overlay caveats)
+  · `23` compile-time dispatch (`if constexpr`, non-type params, startup
+  fn-pointer pick; instantiation bloat) · `24` **HONEST trade-offs** (every
+  technique's hidden cost; six "when NOT to"; the measure→profile→one
+  change→re-measure→explain process).
+- **Examples** — `01_allocation_cost` (latency distribution — mixed churn
+  p99.9 ~2.6 µs) · `02_memory_pool` (`FixedPool` p99.9 ~30 ns flat vs `new`
+  ~180) · `03_object_pool` (construct 30 vs recycle 20 ns) · `04_arena_allocator`
+  (~16× vs new/delete) · `05_pmr_containers` (`pmr::vector` on stack, 0
+  global `new`) · `06_branchless` (mask ~0.26 vs branchy ~0.32; switch vs
+  table ~12×; Rule 2 — `-O2` if-converted the branchy version) ·
+  `07_dispatch_comparison` (virtual 7 ns vs CRTP 0.6 ns hetero) ·
+  `08_std_function_cost` (`std::function` ~2×; 64-B capture → heap in ctor;
+  Rule 2 — latency-bound loop ties the fast three) · `09_ring_buffer` (p50
+  20 ns) · `10_batching` (the throughput/HoL curve) · `11_page_fault_warmup`
+  (COLD vs WARM ~13×/~95×) · `12_hot_cold_split` (Rule 2 — no measurable
+  difference in a micro-bench; kept honest).
 
 ## Next
 → [`../37-HFT-FUNDAMENTALS/00-README.md`](../37-HFT-FUNDAMENTALS/00-README.md)

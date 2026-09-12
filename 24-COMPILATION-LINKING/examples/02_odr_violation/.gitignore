@@ -1,0 +1,4 @@
+*.o
+bad*
+silent_bad*
+silent_lto*

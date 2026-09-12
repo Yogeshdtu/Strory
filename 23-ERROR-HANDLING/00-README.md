@@ -42,8 +42,32 @@ hote hain — aapko pata hona chahiye kyun, aur alternative kya hai.
 2 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE (Batch 8 — PHASE 13).** 13 lessons (`01`–`13`) + `14-exercises.md`
++ 7 examples. Sab `.cpp` `-Wall -Wextra -Wpedantic -Wshadow -Wconversion
+-Wsign-conversion -Wcast-align -Wunused -Wnull-dereference -Wdouble-promotion` pe
+clean (`./build.ps1 folder 23-ERROR-HANDLING`).
+
+- `04_exception_cost` (`-O2`, is box): happy path try/catch vs return-code
+  **~1.0x** (zero-cost model); **~6000+ ns per throw+catch** vs ~1.5 ns return
+  (**~4000x**); 0.1% error rate → try/catch ~8 ns/iter vs ~1.5 ns (**~5x**).
+- `05_expected` — builds under **`-std=c++20`** (hand-rolled `Expected<T,E>`,
+  same API) **and `-std=c++23`** (real `std::expected`); same output.
+- `07_no_exceptions` — compiles + runs **with and without `-fno-exceptions`**
+  (no `throw` in the file).
+- `02_exception_safety` — leak-on-throw vs RAII rollback shown via a live-object
+  counter, not a claim.
+
+**Coverage:** error-handling landscape (return codes / `errno` / exceptions /
+`expected` / `error_code` / assertions) · exceptions mechanics (`throw`/`try`/
+`catch`, catch order, rethrow, `exception_ptr`) · **stack unwinding** (ctor-mid
+throw, `noexcept` boundary → `terminate`, `-fno-exceptions` RAII) · **exception
+safety** (basic/strong/nothrow, copy-and-swap, `noexcept` move + `vector`
+realloc) · `noexcept` deep · custom exception hierarchy (`throw_with_nested`) ·
+**measured exception cost** (zero-cost model + µs throw) · **`-fno-exceptions`**
+(why HFT, what's lost, the toolkit) · **`std::expected`** (monadic
+`and_then`/`transform`/`or_else`/`transform_error`) · `std::error_code` /
+`error_condition` / custom categories · assertions / `static_assert` /
+`std::unreachable` / `[[assume]]` / contracts · **UB catalog** + sanitizers.
 
 ## Next
 → [`../24-COMPILATION-LINKING/00-README.md`](../24-COMPILATION-LINKING/00-README.md)

@@ -44,8 +44,26 @@ hai — standard by standard, feature by feature.
 3–4 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE (Batch 7 — PHASE 12).** 14 lessons (`01`–`14`) + `15-exercises.md`
++ 8 examples (7 `.cpp` + the multi-file `05_modules_demo/`). Sab `.cpp` `-Wall
+-Wextra -Wpedantic -Wshadow -Wconversion -Wsign-conversion` pe clean (`./build.ps1
+folder 22-MODERN-CPP`); modules demo `-fmodules-ts` pe separately verified.
+
+- `01_lambdas_all`: `sizeof([x1,x2]{})`=16, `sizeof([]{})`=1, `sizeof(std::function)`=32.
+- `03_ranges_pipelines` (5M int64): ranges pipeline ~6.5 ms vs hand loop ~10 ms
+  — **pipeline ~1.5× FASTER** (hand loop's conditional accumulate doesn't
+  vectorize; pipeline → branchless masked SIMD). Surprising-but-real, taught not
+  hidden.
+- `05_modules_demo/`: working `export module` / `import` (GCC 15 `-fmodules-ts`).
+
+**Coverage:** systematic standard-by-standard audit — C++11 (move, `auto`,
+lambdas, `nullptr`, smart pointers, threads) · C++14 (generic lambdas,
+`make_unique`, relaxed `constexpr`) · C++17 (`optional`/`variant`/`string_view`,
+structured bindings, `if constexpr`, guaranteed copy elision) · C++20 (concepts,
+ranges, coroutines, modules, `<=>`, designated init, `<bit>`, `std::format`) ·
+C++23 (`std::expected`, `std::print`, `std::generator`, deducing `this`, `flat_map`).
+Deep dives: lambdas · `constexpr`/`consteval`/`constinit` · ranges · coroutines ·
+modules · `<=>` · attributes · `std::format` · a legacy→modern migration guide.
 
 ## Next
 → [`../23-ERROR-HANDLING/00-README.md`](../23-ERROR-HANDLING/00-README.md)

@@ -41,9 +41,10 @@ flags, aur low-level optimization mein har jagah use hote hain.
 5–7 din
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega. Tab tak pichle folders ke exercises karo,
-kyunki yeh sab unhi pe khada hoga.
+✅ **COMPLETE** (Batch 2, PHASE 2). 12 lessons + `12-exercises.md` +
+6 compile-verified examples. Full operator set + precedence/associativity,
+**evaluation order & sequencing rules**, **bitwise operators** (systems
+depth), bit tricks, and HFT-style bit-flag structs.
 
 ## Next
 → [`../06-CONDITIONS/00-README.md`](../06-CONDITIONS/00-README.md)

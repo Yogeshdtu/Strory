@@ -48,8 +48,12 @@ Isi order mein chalenge. Jaldi mat karna.
 3–4 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE (Batch 8 — PHASE 17).** 16 lessons (`01`–`16`) + `17-exercises.md` +
+8 examples (`examples/`), sab compile-verified (`./build.ps1 folder
+27-ATOMICS-MEMORY-MODEL` → 8/8 OK). Benchmarks (`05`, `06`) real measured numbers
+ke saath — machine state ke hisaab se absolute ns badalte hain, ratios stable
+(seq_cst store ~18× a relaxed store; loads/RMW order-insensitive on x86; SB
+outcome rel/acq pe *zyada*, seq_cst pe hamesha 0).
 
 ## Next
 → [`../28-LOCK-FREE/00-README.md`](../28-LOCK-FREE/00-README.md)

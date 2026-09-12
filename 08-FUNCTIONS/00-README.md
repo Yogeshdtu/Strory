@@ -43,9 +43,10 @@ Aur yahan **call stack** samjhenge, jo pointers, recursion, aur debugging ka fou
 1–2 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega. Tab tak pichle folders ke exercises karo,
-kyunki yeh sab unhi pe khada hoga.
+✅ **COMPLETE** (Batch 3, PHASE 3 ka aakhri folder). 13 lessons + exercises + 7
+compile-verified examples. Highlights: **call stack deep dive** (frames,
+prologue/epilogue, real assembly), `05_stack_overflow.cpp` (deliberate crash),
+measured — fib exponential (~11x per +5), inline vs real-call (~6x, ~1.9 ns/call).
 
 ## Next
 → [`../09-ARRAYS/00-README.md`](../09-ARRAYS/00-README.md)

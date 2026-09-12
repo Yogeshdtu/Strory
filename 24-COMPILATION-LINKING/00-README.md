@@ -44,8 +44,46 @@ kyunki bade projects mein build system hi aapka roz ka sangharsh hai.
 2 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE (Batch 8 — PHASE 14).** 15 lessons (`01`–`15`) + `16-exercises.md`
++ examples: 6 multi-file directories (`01`–`06`), `07_binary_inspection.sh`, aur
+2 self-contained `.cpp` (`08_preprocessor_demo`, `09_linkage_storage`).
+
+- **`.cxx`/`.hpp`** for the directory examples so the repo's `*.cpp`
+  compile-check skips them; each builds via its own `build.sh` / `build.ps1` and
+  is verified manually. `08`/`09` are `.cpp` and pass `./build.ps1 folder
+  24-COMPILATION-LINKING` under the full warning set.
+- `01_multi_file_project` — 3 TUs → link → `count_primes<=100 = 25` (cross-TU
+  call resolves).
+- `02_odr_violation` — DEMO 1: `ld: multiple definition of venue_name()`.
+  DEMO 2: plain link OK with `sizeof(Config)` **12 vs 16**; `g++ -flto -Wodr`
+  catches it and names the first differing field.
+- `03_static_library` — `ar rcs libcalc.a` (3 members); `nm app` shows
+  `calc::add/mul/dot/build_id` but **not** `calc::huge_unused` (member not
+  pulled from the archive).
+- `04_shared_library` — `greet.dll` + import lib; `objdump -p app.exe` shows the
+  DLL dependency; rebuild library only → app output changes without relinking.
+- `05_makefile_project` — pattern rules + `-MMD -MP` auto-deps: `make` no-op =
+  "Nothing to be done"; `touch util.cxx` → only `util.o` + link; `touch
+  include/engine.hpp` → **all** `.o` rebuild. (`OS`-aware `.exe` suffix so Make
+  isn't always stale on Windows.)
+- `06_cmake_project` — CMake 4.0.2: configure/build/run; `-DENGINE_FAST_PATH=ON`
+  → `flavor: fast-path`; `cmake --install` → `stage/{bin,lib,include}`.
+
+**Coverage:** translation units + compilation model · preprocessor deep (macros,
+`#`/`##`, `__VA_OPT__`, X-macros, predefined macros, `_Pragma`, traps) · include
+guards / `#pragma once` / IWYU / self-contained headers / pImpl · **ODR deep**
+(loud "multiple definition" vs silent IFNDR, `-Wodr`, `_GLIBCXX` flag drift) ·
+linkage (internal/external/module, `static`, anon namespaces, visibility) ·
+storage (`static`, `extern`, `inline` variables, `thread_local`, `constinit`,
+init-order fiasco) · name mangling / `extern "C"` / ABI / `c++filt` · object
+files & ELF (sections, `.symtab`, relocations, `.bss`) · **static vs dynamic
+linking** (`.a` member selection, PLT/GOT cost, `-fPIC`, RUNPATH, HFT: static) ·
+every common linker error + fix · Make (rules, vars, patterns, `-MMD -MP`,
+order-only prereqs, `.PHONY`) · CMake (targets, `PUBLIC`/`PRIVATE`/`INTERFACE`
+usage requirements, `find_package`, generator expressions, install) · build
+performance (header hygiene, PCH, unity builds, ccache, ninja, `mold`/`lld`) ·
+binary tools (`nm`/`objdump`/`readelf`/`ldd`/`strings`/`size`/`strip`/`addr2line`)
+· **LTO and PGO** (whole-program opt, profile-guided, the HFT release config).
 
 ## Next
 → [`../25-OBJECT-MODEL/00-README.md`](../25-OBJECT-MODEL/00-README.md)

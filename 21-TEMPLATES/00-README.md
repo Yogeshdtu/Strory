@@ -47,8 +47,24 @@ jaate hain.
 3–4 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE (Batch 7 — PHASE 11).** 16 lessons (`01`–`16`) + `17-exercises.md`
++ 8 verified examples. Sab `.cpp` `-Wall -Wextra -Wpedantic -Wshadow -Wconversion
+-Wsign-conversion` pe clean (`./build.ps1 folder 21-TEMPLATES`). Benchmarks `-O2`,
+**real numbers** lessons mein:
+
+- `07_crtp_policy`: CRTP dispatch ~0.56 ns/call vs `virtual` (heterogeneous
+  `vector<unique_ptr<Base>>`, real boundary) ~2.43 ns/call; `sizeof(Circle)` = 8
+  (no vptr). Note: concrete type visible → GCC devirtualizes → virtual == CRTP.
+- `08_compile_time_dispatch` (200M calls): `virtual` ~2.51 ns, `template` ~1.14
+  ns, `std::variant`+`std::visit` ~1.13 ns per call.
+
+**Coverage:** why templates (zero-cost codegen) · function & class templates ·
+deduction · non-type / template-template params · full + partial specialization ·
+variadic + fold expressions · `if constexpr` · `<type_traits>` internals + your
+own · **SFINAE** · **concepts (C++20)** · **CRTP** + policy-based design · tag
+dispatch · TMP (`constexpr` over recursive templates) · two-phase lookup /
+`typename`/`template` · instantiation model + code bloat + `extern template` ·
+**templates in HFT** (the synthesis — compile-time dispatch vs `virtual`).
 
 ## Next
 → [`../22-MODERN-CPP/00-README.md`](../22-MODERN-CPP/00-README.md)

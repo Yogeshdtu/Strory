@@ -48,8 +48,32 @@ Aur har change ka **explanation** ki kya badla aur kyun.
 3 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE (PHASE 31).** 17 lessons (`01`–`17`) + 8 examples
+(`pipeline.hpp` shared header + `02_profile_analysis.sh` Linux/`perf`
+workflow, `bash -n`-checked + 7 portable `.cpp`). `./build.ps1 folder
+43-HFT-OPTIMIZATION` → **7/7 OK** under strict warnings.
+
+Folder ka spine: `pipeline.hpp` do versions — `PipelineV0` (realistic-naive:
+`substr`+`std::stod` parse, `std::map<double>`+`std::list` book, `std::deque`
+re-sum SMA, `std::string` encode) aur `PipelineV3` (hand int-parse +
+fixed-point price, flat-array book + cached top-of-book + dense-id direct
+index, ring-buffer running-sum SMA with **zero division**, POD encode).
+Ek hi deterministic feed dono ko; V3 ka signal math V0 ke float cross-
+condition ka **exact integer equivalent**. `04_before_after.cpp` ek process
+mein dono chalata — **output-agreement gate PEHLE** (110/110 order-fire
+ticks identical), speedup uske BAAD.
+
+Measured (is box, ratios — absolutes unpinned desktop pe ~20% run-to-run):
+**end-to-end ~60–80×** (v0 ~1.9–2.7 µs/tick → v3 ~25–45 ns/tick),
+parse ~25×, book ~25–29×. Isolated: division `div`→shift ~17× / →magic-mul
+~13× / →reciprocal ~7×; struct fat→SoA ~8×; fixed-point `0.1*10 != 1.0`
+demo exact. Hot/cold split ~1% on this box (frontend not the bottleneck at
+this scale — honest Rule-2 result, carries `36/12`; attribute cost is 0,
+kept anyway).
+
+`02_profile_analysis.sh` (`perf stat`/`record`/`annotate`/`c2c` + a
+signal→lesson map) Linux-only — is Windows/MinGW box pe `bash -n`-checked,
+run nahi kiya.
 
 ## Next
 → [`../44-HFT-PROJECTS/00-README.md`](../44-HFT-PROJECTS/00-README.md)

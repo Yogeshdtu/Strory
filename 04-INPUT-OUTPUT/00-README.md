@@ -46,9 +46,10 @@ critical hai.
 4–6 din
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega. Tab tak pichle folders ke exercises karo,
-kyunki yeh sab unhi pe khada hoga.
+✅ **COMPLETE** (Batch 2, PHASE 2). 13 lessons + `13-exercises.md` +
+8 compile-verified examples. `iostream` internals, buffering & flushing
+(measured), `printf` family, `<iomanip>`, robust input loops, file I/O,
+and I/O performance for the hot path.
 
 ## Next
 → [`../05-OPERATORS/00-README.md`](../05-OPERATORS/00-README.md)

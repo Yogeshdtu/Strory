@@ -44,8 +44,27 @@ Compiler aapka sabse bada partner hai. Uske saath kaam karna seekho — uske khi
 2–3 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE (Batch 9 — PHASE 22).** 15 lessons + `16-exercises.md` +
+8 examples (6 portable `.cpp` + `06_lto_demo/` multi-file `.cxx` +
+`07_pgo_workflow.sh`).
+
+- `./build.ps1 folder 33-COMPILER-OPTIMIZATION` → **6/6 OK** under strict flags.
+- Benchmarks measured at `-O2` (AMD Zen 2, ~2 GHz — **ratios port, absolutes
+  don't**; plain `-O2` = SSE2 baseline here):
+  - `01` -O levels: **-O0 80 ms → -O1 13.4 ms (~6× cliff)**; -O1/-O2/-O3/-Os
+    equal for this reduction shape (nothing to vectorize).
+  - `02` inlining: noinline **1.31 ns/iter** vs inlined **~1.0** (~1.3×);
+    `normal == always_inline`.
+  - `03` vectorization: MAP scalar→vectorized **~3.5×**; float REDUCE
+    **scalar-speed at `-O2`, ~4× with `-ffast-math`** (reassociation — Rule 2);
+    PREFIX never vectorizes.
+  - `04` aliasing: may-alias vs `__restrict` **~3.5×** (functions
+    `[[gnu::noinline]]`; inlined/LTO the compiler solves it itself).
+  - `05` branch hints: **~1.3×** (HW predictor already nails a 1/1000 branch;
+    the hint is code layout).
+  - `06` LTO: throughput loop **NO LTO 1.75 → `-flto` 0.76 ns/elem (~2.3×)**;
+    ⚠️ a carried loop showed **no** LTO gain (latency-bound — Rule 2 nuance).
+  - `08` barriers: **no barrier 0.00 ms (loop deleted)** vs DoNotOptimize ~48 ms.
 
 ## Next
 → [`../34-ASSEMBLY/00-README.md`](../34-ASSEMBLY/00-README.md)

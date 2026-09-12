@@ -41,8 +41,10 @@ Aur yahan **array decay** milega — jo pointers ka darwaza hai.
 1 hafta
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE** (Batch 4). 11 lessons + exercises + 7 compile-verified examples.
+Highlights: array decay + `sizeof` trap, `std::array` / `std::span`, row-major 2D,
+**AoS vs SoA measured ~4x** (`07_aos_vs_soa.cpp`), OOB bug catalogue with
+`_GLIBCXX_ASSERTIONS` (MinGW; ASan on Linux).
 
 ## Next
 → [`../10-STRINGS/00-README.md`](../10-STRINGS/00-README.md)

@@ -47,8 +47,14 @@ yahin se aati hai.
 2 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE** (Batch 7 — PHASE 8). 14 lessons + exercises + 9 compile-verified
+examples. Copy ctor/assign, Rule of Three, **value categories** (lvalue/prvalue/
+xvalue), rvalue references, move ctor/assign (steal + null, moved-from state),
+**`std::move` is a cast**, Rule of Five (generation-rules table), Rule of Zero,
+**copy elision** (RVO/NRVO/guaranteed C++17), **perfect forwarding**
+(`std::forward` + forwarding refs + reference collapsing), **`noexcept` move**
+(vector growth), move-in-practice checklist. Measured: `noexcept` vs not on
+vector realloc = **~3x**; copy 1M strings ~177 ms vs move ~0.0001 ms.
 
 ## Next
 → [`../19-STL/00-README.md`](../19-STL/00-README.md)

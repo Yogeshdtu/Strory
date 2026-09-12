@@ -57,8 +57,45 @@ ka process follow hoga:
 8–12 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE (PHASE 32) — course ka climax.** 15 lessons (`01`–`15`) +
+12 example drivers + 11 shared `mh_*.hpp` headers. `./build.ps1 folder
+44-HFT-PROJECTS` → **12/12 OK** under strict warnings.
+
+Ek `MiniHftEngine` (`mh_engine.hpp`) jo sab jodta: **MarketData → Parser
+→ L2Book → Strategy → Risk → OMS → Venue → fills → PnL**, single-threaded,
+fully deterministic (no wall clock — sab event-timestamp driven).
+
+**Reuse over rewrite (capstone ka point):** `mh_types.hpp` folder-40 ka
+`matching_engine.hpp` `#include` karta (Price/Qty/OrderId types + the
+`MatchingEngine` itself as the "venue"); `07_spsc_queue.cpp` folder-41 ka
+`spsc_queue.hpp` use karta; book/pools/strategy folder 39/14/36/43 ke
+patterns pe.
+
+**The capstone optimization (43 methodology):** `MiniHftEngine` is
+`template <class Venue>`. `NaiveEngine` = `ExecutionSimulator` (folder-40
+`std::map` MatchingEngine — one tree insert + one `std::list`-node
+`malloc` per market message). Profiling showed this venue mirror was the
+`book` stage's bulk (~150 ns/msg). `OptimizedEngine` = `FastVenue`
+(`mh_fast_venue.hpp`) — flat-array aggregate book + per-level FIFO + IOC
+sweep. **Correctness gate first:** `12_integration_tests.cpp` proves
+naive == optimized byte-for-byte (fills, qty, P&L, position) across 5
+seed/config combos, both deterministic. **Then** the speedup: book stage
+~150 → ~67 ns/msg, end-to-end mean/msg ~225 → ~145 ns (**~1.5–1.6×** on
+this unpinned Zen 2 box; p50/p99 the reliable comparison — `max` is
+scheduler jitter, 41/13).
+
+**Per-component measured (this box, ratios):** L2Book apply ~17 ns/msg
+(BBO matches a `std::map` reference exactly); FixedPool alloc+free ~2.0×
+(p50) / ~5.0× (p99.9) vs `new`/`delete`; ObjectPool stale-handle → nullptr
+even post-recycle; SPSC hand-off ~6 M msg/s, every message in order; risk
+14/14 checks (rate-limit ≠ kill switch); OMS accounting always settles
+(no leaked orders, no phantom fills). Feed parser v1 vs v3: `-O2` pe
+**~1.0×** (honest Rule-2 null — compiler already optimal at this scale,
+cf. 43/08).
+
+**No alpha.** `SpreadCrossStrategy` is a mechanical rule to exercise the
+pipeline; its backtest P&L has zero predictive meaning (37 SPECIALIZED
+list). Mojibake sweep: 16 → **0**.
 
 ## Next
 → [`../45-DEBUGGING/00-README.md`](../45-DEBUGGING/00-README.md)

@@ -46,8 +46,24 @@ Har cheez pehle **simple** explain hogi, phir gehrai mein — spec ka rule.
 3 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE** (Batch 9 — PHASE 20). 15 lessons + `16-exercises.md` + 8 examples.
+
+- Examples portable `.cpp` (SIMD + `rdtsc` + CPUID sab x86-64 pe chalte —
+  MinGW/Windows included). `./build.ps1 folder 31-CPU-ARCHITECTURE` → **8/8 OK**;
+  benchmarks `./build.ps1 fast` pe measured (real numbers per Rule 2).
+- Measured on **AMD Ryzen 7 4700U (Zen 2, ~2 GHz throttled, no AVX-512)** —
+  numbers illustrate **shapes / ratios**, not production absolutes (files 13/15
+  explain why: frequency scaling; benchmark on the deployment box, locked).
+- **CLAUDE.md Rule 2 in action:** examples `01`/`03` first showed *no effect*
+  because `-O2` DCE'd the ADD/DIV chains and if-converted the branch to `cmov`.
+  Fixed with `keep()` inline-asm barriers + `#pragma GCC optimize("no-if-
+  conversion")` + threaded `carry` — and the "compiler already made it
+  branchless" observation is now taught explicitly (files 03, 07).
+- Key measured results: serial `imul` chain vs 4 parallel **~4×** (ILP,
+  ex 02); unpredictable branch **~6–7×** slower (ex 03); branchless **~6–7×**
+  on random data (ex 04); float sum scalar→SSE **4.1×**→AVX2 **~9.5×** (ex 05);
+  same-code auto-vectorized **~2.5–3×** (ex 06); `rdtsc` self-cost ~20 cyc vs
+  serialized ~40–90 cyc (ex 08).
 
 ## Next
 → [`../32-CACHE-MEMORY-PERFORMANCE/00-README.md`](../32-CACHE-MEMORY-PERFORMANCE/00-README.md)

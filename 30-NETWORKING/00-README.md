@@ -48,8 +48,19 @@ Market data network se aata hai. Orders network se jaate hain. Poora HFT game
 3–4 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE** (Batch 9 — PHASE 19). 16 lessons + `17-exercises.md` + 10
+examples.
+
+- Examples sab **`*.linux.cpp`** (POSIX sockets, `epoll`, multicast,
+  `SO_TIMESTAMPING`, `recvmmsg`). Windows/MinGW pe compile nahi hote —
+  `./build.ps1 folder 30-NETWORKING` inhe `SKIP (linux-only)` karta hai (10/10
+  skipped, 0 fail). Linux/WSL pe verify karo.
+- Benchmark numbers har example ke `EXPECTED OUTPUT` block mein **TYPICAL Linux
+  loopback** figures hain, explicitly "not measured on your machine" labelled
+  (CLAUDE.md Rule 2 — is box pe socket code chal hi nahi sakta). Asli numbers
+  `17-exercises.md` Part D mein khud Linux pe lo.
+- `build.ps1` ka `.linux.cpp` skip-hook (folder 29 mein add kiya) yahan bhi
+  apply hota.
 
 ## Next
 → [`../31-CPU-ARCHITECTURE/00-README.md`](../31-CPU-ARCHITECTURE/00-README.md)

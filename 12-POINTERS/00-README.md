@@ -47,8 +47,10 @@ Har prerequisite (variables → addresses → memory) pehle ho chuka hai. Ab aap
 2 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE** (Batch 5 — PHASE 5 shuru). 13 lessons + exercises + 8
+compile-verified examples. `&`/`*`/`nullptr`, pointer arithmetic, arrays↔pointers,
+`const` combinations, `->`, `int**`, `void*`, function pointers (→ virtual
+dispatch), dangling/UAF, aur poora bug catalog. Memory diagrams ke saath.
 
 ## Next
 → [`../13-REFERENCES/00-README.md`](../13-REFERENCES/00-README.md)

@@ -36,8 +36,12 @@ direct prerequisite hai.
 1 hafta
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE** (Batch 5 — PHASE 5). 9 lessons + exercises + 5 compile-verified
+examples. Alias model, reference vs pointer (poora table), pass-by-reference,
+`const T&` + lifetime-extension rules, returning references + dangling, range-`for`
+copy-vs-alias, reference members (+ `reference_wrapper`), `T&&`/move ka pehla
+parichay, aur reference-bug catalog. Benchmark: by-value vs `const&` `std::vector`
+= **~190x** measured (`03_const_ref_performance.cpp`, `-O2`).
 
 ## Next
 → [`../14-MEMORY/00-README.md`](../14-MEMORY/00-README.md)

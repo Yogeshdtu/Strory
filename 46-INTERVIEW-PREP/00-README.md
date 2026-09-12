@@ -36,18 +36,28 @@ apne aap ko test karo.
 
 ## Examples
 
-| File | Kya |
+| Path | Kya |
 |---|---|
-| `examples/01_interview_problems/` | Coding problems with solutions |
-| `examples/02_design_problems/` | System design scenarios |
-| `examples/03_mock_scripts/` | Mock interview transcripts |
+| `examples/*.cpp` | 8 classic interview **coding problems** — clean solution + assertion `main()` + "what the interviewer is testing" + HFT angle. `./build.ps1 folder 46-INTERVIEW-PREP` → **8/8 OK** (strict). |
+| `examples/design/` | 4 worked **system-design** answers (feed handler, matching engine, risk gateway, full tick-to-trade) following the `15` arc |
+| `examples/mocks/` | 4 full **mock-interview transcripts** with rubrics (C++ deep-dive, latency/systems, system design, market-making game) |
+
+Coding problems: `01` reverse linked list · `02` LRU cache · `03` **lock-free
+SPSC ring** · `04` fixed-point price parse · `05` object pool · `06` L2
+top-of-book · `07` atoi edge cases / overflow · `08` O(1) moving average +
+division-free signal.
 
 ## Time
 Ongoing
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE.** 20 lessons (`01`–`20`) + 8 verified coding examples + 4
+design docs + 4 mock transcripts. Layered question banks `02`–`14`
+(Layer 1 types → Layer 13 tick-to-trade architecture), plus `15`
+(system design), `16` (brainteasers/probability), `17` (C++ trick
+questions), `18` (behavioural), `19` (mock scripts + rubrics), `20`
+(resume). `./build.ps1 folder 46-INTERVIEW-PREP` → 8/8 OK under strict
+warnings.
 
 ## Next
 → [`../47-CODING-PROBLEMS/00-README.md`](../47-CODING-PROBLEMS/00-README.md)

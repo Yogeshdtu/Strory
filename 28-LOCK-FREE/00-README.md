@@ -43,8 +43,14 @@ Lock-free structures HFT ka roz ka tool hain. Yahan hum unhe **banayenge**,
 3 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE (Batch 8 — PHASE 17/18).** 14 lessons (`01`–`14`) + `15-exercises.md`
++ 7 examples (`examples/`), sab compile-verified (`./build.ps1 folder 28-LOCK-FREE`
+→ 7/7 OK). Benchmarks real measured numbers ke saath — aur do **anti-intuitive**
+results teach kiye (CLAUDE.md Rule 2): (1) SPSC ring mein cache-line padding *akela*
+is box pe ~noise deta hai — asli win **cached opposite index** hai (`examples/02`);
+(2) ek contended lock-free Treiber stack `std::mutex + std::vector` se **~5× SLOWER**
+nikla (`examples/04`) — lock-free ≠ fast. Jahan shape sahi hai (SPSC, seqlock)
+wahan lock-free 4–100× jeeta (`examples/05`, `06`).
 
 ## Next
 → [`../29-LINUX-SYSTEMS/00-README.md`](../29-LINUX-SYSTEMS/00-README.md)

@@ -62,8 +62,22 @@ bhi padhenge.
 4–6 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE (Batch 7 — PHASE 9).** 27 lessons (`01`–`27`) + 11 verified
+examples. Sab `.cpp` `-Wall -Wextra -Wshadow` pe clean (`./build.ps1 folder
+19-STL`). Benchmarks `-O2` pe chalaye gaye, **real numbers** lessons mein:
+
+- `02_map_vs_unordered` (N=200k): `std::map` ~1049 ns/lookup, sorted `vector` +
+  `lower_bound` ~357 ns, `unordered_map` (reserved) ~113 ns — same-O(log n) map
+  vs sorted-vector gap is pure cache.
+- `08_std_function_cost` (50M calls): templated/fn-ptr ~1.48 ns/call,
+  `std::function` small ~5.11 ns, `std::function` with a `std::string` closure
+  ~6.00 ns **+ 1 heap allocation**.
+- `10_pmr_demo`: plain `std::vector<int>` ~11 heap allocs vs `std::pmr::vector`
+  on a 64 KB stack buffer → **0** global `new`; `null_memory_resource()` upstream
+  → `bad_alloc` on overflow; `release()` reuse across 100 iters → still 0.
+- `11_container_benchmark` (N=1M): iterate(ms) vector 0.67 / deque 2.28 / list
+  18.02 / set 197 / unordered_set 66.6; build(ms) vector 2.86 / list 86.4 / set
+  1617; membership all-N unordered_set 49.3 ms vs set 1066 ms (~22x).
 
 ## Next
 → [`../20-ALGORITHMS-DSA/00-README.md`](../20-ALGORITHMS-DSA/00-README.md)

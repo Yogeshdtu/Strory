@@ -43,8 +43,26 @@ share nahi karte — hum unhe isolate karte hain.
 3 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE** — 14 lessons (`01`–`14`) + 8 examples + 2 shared headers
+(`spsc_queue.hpp`, `seqlock.hpp`). `./build.ps1 folder 41-HFT-CONCURRENCY`
+→ **8/8 OK**.
+
+Real thread-per-stage pipeline built end to end (`08_pipeline_demo.cpp`
+runs 40-MATCHING-ENGINE's ACTUAL `MatchingEngine`, not a stand-in),
+production-grade SPSC queue + a simplified LMAX Disruptor (fan-out,
+gating, batching, correctness-verified with 2 independent consumers over
+4M events) + seqlock snapshots. Central measured findings: seqlock beats
+`shared_mutex` by ~2500-3500x under an adversarial max-rate-writer stress
+test (vs 28's original ~80-100x under gentler conditions); busy-spin vs
+blocking measured on BOTH latency AND real CPU-time cost (via a
+`GetThreadTimes`+`DuplicateHandle` fix for a MinGW `native_handle()`
+quirk); core pinning (`SetThreadAffinityMask`) reduced hiccup frequency
+but produced a WORSE single max-delay outlier — an honest demonstration
+that affinity ≠ isolation; async logging cut hot-path cost ~14x. A
+counter-intuitive pacing/tail-latency finding (slower feed pace made
+p99 WORSE, not better, because longer test duration meant more exposure
+to OS scheduler jitter, not more backlog) is documented as a genuine
+Rule-2 case study in lesson 13.
 
 ## Next
 → [`../42-HFT-NETWORKING/00-README.md`](../42-HFT-NETWORKING/00-README.md)

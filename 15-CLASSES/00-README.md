@@ -43,8 +43,14 @@ aur usko **protect** karti hai.
 1–2 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE** (Batch 6 — PHASE 6). 13 lessons + exercises + 8 compile-verified
+examples. Encapsulation + invariants, members/`this`, access specifiers,
+constructors (default/param/delegating/`= default`/`= delete`), member init
+lists (+ order trap), destructors (+ Rule of 3/5 preview), `const` methods +
+`mutable`, static members (`inline static`), operator overloading (`+=`/`+`/`<<`/
+`<=>`), `friend` (hidden-friend idiom), `explicit`, nested/local classes, class
+layout (EBO, `is_standard_layout`, no-vptr). Encapsulation = zero runtime cost,
+throughout.
 
 ## Next
 → [`../16-OOP/00-README.md`](../16-OOP/00-README.md)

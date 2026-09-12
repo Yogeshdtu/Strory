@@ -47,8 +47,27 @@ Folder 01 lesson 11 mein aapne 7x slowdown dekha tha. Ab uska poora science.
 3 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE (Batch 9 — PHASE 21).** 15 lessons + `16-exercises.md` +
+8 portable `.cpp` examples + `09_perf_analysis.sh` (Linux perf workflow).
+
+- Examples verified: `./build.ps1 folder 32-CACHE-MEMORY-PERFORMANCE` → **8/8 OK**
+  (strict flags: `-Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wsign-conversion
+  -Wcast-align -Wnull-dereference -Wdouble-promotion`).
+- Benchmarks measured at `-O2` on this box (AMD Zen 2, ~2 GHz throttled —
+  **ratios port, absolutes don't**):
+  - `03` row-major vs column-major traversal: **~10×** at `-O2`;
+    **~1.0× at `-O3 -march=native`** (GCC `-ftree-loop-interchange` fixes it — Rule 2).
+  - `02` sequential vs random line access: **~7×** (14 GB/s vs 2 GB/s).
+  - `04` false sharing: **~6× to ~44×, run-to-run** (scheduling-dependent → jittery).
+  - `05` AoS/SoA: scan-few-fields **SoA ~2.0×**; scan-most-fields **SoA ~2.4×**
+    (gap doesn't shrink — SoA vectorizes); random whole-record **AoS ~3×**.
+  - `06` SW prefetch: **~1.1× (marginal) or ~0.33× (3× SLOWER)** — cautionary, Rule 2.
+  - `07` matmul: loop-order `ikj` **~4×**; naive 64×64 blocking **~10-15% slower
+    than `ikj`** (needs tuned microkernel — Rule 2).
+  - `08` TLB/cache latency cliff at ~8 MiB working set (**~1.2 ns → ~95 ns**).
+- Example filename `08_tlb_hugepages.cpp` kept from the plan but implemented as a
+  **portable** TLB-pressure benchmark (huge-page *allocation* is OS-specific —
+  covered in lesson 11: Linux `MAP_HUGETLB`/THP, Windows large pages).
 
 ## Next
 → [`../33-COMPILER-OPTIMIZATION/00-README.md`](../33-COMPILER-OPTIMIZATION/00-README.md)

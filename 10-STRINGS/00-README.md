@@ -37,8 +37,10 @@ jo HFT mein allocation avoidance ka classic example hai.
 1 hafta
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE** (Batch 4). 9 lessons + exercises + 6 compile-verified examples.
+Highlights: C-strings → `std::string` → `std::string_view`, **SSO threshold
+measured (15 chars, `03_sso_demo.cpp` at `-O0`)**, `from_chars` vs `stoi`
+**measured ~8x** (`05_fast_parsing.cpp`), zero-copy CSV parser, UTF-8 bytes ≠ chars.
 
 ## Next
 → [`../11-STRUCTS/00-README.md`](../11-STRUCTS/00-README.md)

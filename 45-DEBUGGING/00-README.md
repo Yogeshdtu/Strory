@@ -27,21 +27,24 @@ karoge — isliye ise jaldi skim kar lo, phir zarurat pe wapas aao.
 
 ## Examples
 
-| File | Kya |
-|---|---|
-| `examples/01_gdb_practice.cpp` | GDB ke liye practice program |
-| `examples/02_segfault_debug.cpp` | ⚠️ Crash + core dump analysis |
-| `examples/03_memory_bugs.cpp` | ⚠️ Leak, UAF, overflow — sanitizers se pakdo |
-| `examples/04_race_debug.cpp` | ⚠️ Race condition — TSan |
-| `examples/05_deadlock_debug.cpp` | ⚠️ Deadlock — gdb se inspect |
-| `examples/06_buggy_programs/` | 10 buggy programs — aapko fix karne hain |
+| File | Kya | Chalta? |
+|---|---|---|
+| `examples/01_gdb_practice.cpp` | GDB practice program (break/step/watch/bt/finish) — **real transcripts** lessons 02–05 mein | ✅ |
+| `examples/02_segfault_debug.cpp` | ⚠️ NULL-deref crash + core-dump workflow | ❌ SIGSEGV |
+| `examples/03_memory_bugs.cpp` | ⚠️ Menu: leak / UAF / OOB / double-free / uninit / stack-UAR — sanitizers se pakdo | ⚠️ UB per mode |
+| `examples/04_race_debug.cpp` | ⚠️ Data race (4 threads, plain `long`); `--safe` = atomic — TSan | ⚠️ wrong total |
+| `examples/05_deadlock_debug.cpp` | ⚠️ AB/BA deadlock; default safe, `--deadlock` hangs — gdb `thread apply all bt` | ✅ / ⏸ |
+| `examples/06_buggy_programs/` | 10 "find & fix" drills (off-by-one, uninit, unsigned wrap, dangling view, use-after-move, iterator invalidation, int overflow, rule-of-three double-free, precedence, data race) | compile ✅ / misbehave ⚠️ |
 
 ## Time
 1–2 hafte
 
 ## Status
-⏳ **Yeh folder abhi syllabus stage pe hai.** Upar ki file list poori plan hai —
-content agle batch mein aayega.
+✅ **COMPLETE.** 13 lessons + 5 standalone examples + 10 buggy programs.
+`./build.ps1 folder 45-DEBUGGING` → 5/5 OK (strict warnings); buggy programs
+`checkall` mein compile-clean. gdb transcripts is box (MinGW GCC 15.1.0,
+GDB 16.3) ke **real** output; sanitizer/valgrind/rr Linux-only, expected
+output examples ke neeche.
 
 ## Next
 → [`../46-INTERVIEW-PREP/00-README.md`](../46-INTERVIEW-PREP/00-README.md)
