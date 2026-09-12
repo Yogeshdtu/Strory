@@ -9,9 +9,9 @@ C++23 ek **consolidation** release hai — C++20 ki cheezein complete karta:
 `std::expected` (finally a value-or-error type), `std::print` (a real
 `printf`-replacement), `std::generator` (the coroutine library type C++20 forgot),
 `std::mdspan`, deducing `this`, aur ranges ko `std::ranges::to` + naye adaptors
-se poora karta. Toolchain support **partial** hai (GCC 14+/Clang 17+ mostly);
-is repo ka default `-std=c++20` hai, to ye discussed hai, sab compile-verified
-nahi.
+se poora karta. Toolchain support compiler version pe depend karta hai. Yeh file
+**naksha** hai; har feature chala ke, naap ke [`15-cpp23-in-practice.md`](15-cpp23-in-practice.md)
+mein hai (GCC 16.2 pe compile-verified — coroutines/ranges seekhne ke baad).
 
 ---
 
@@ -22,7 +22,7 @@ nahi.
 | **`std::expected<T, E>`** | value **or** error, no exceptions, no out-param; `.value()`, `.error()`, `and_then`/`transform`/`transform_error` monadic chain | folder 19 file 15, folder 23 |
 | **`std::print` / `std::println`** | `std::print("x={}\n", x);` — `std::format` straight to a stream, faster than iostreams, type-safe unlike `printf` | [`13-format-and-print.md`](13-format-and-print.md) |
 | **`std::generator<T>`** | the standard coroutine generator — `std::generator<int> fib() { ... co_yield a; ... }` (C++20 made you hand-roll it) | [`09-coroutines.md`](09-coroutines.md), [`examples/04`](examples/04_coroutines_generator.cpp) |
-| **`std::mdspan`** | non-owning multi-dimensional array view over contiguous storage (row/column-major layouts, submdspan) | — |
+| **`std::mdspan`** | non-owning multi-dimensional array view over contiguous storage (row/column-major layouts, submdspan) | [`15`](15-cpp23-in-practice.md) section 2 |
 | **`std::flat_map` / `std::flat_set`** | sorted-vector-backed map/set — the "cache-friendly `std::map`" from folder 20 file 17, standardized | folder 19 file 25, folder 20 file 17 |
 | **`std::ranges::to<C>()`** | materialize a view into a container in one call: `v \| views::filter(...) \| std::ranges::to<std::vector>()` | folder 19 file 14 |
 | **New range adaptors** | `views::zip`, `views::enumerate`, `views::adjacent`, `views::chunk`, `views::slide`, `views::chunk_by`, `views::join_with`, `views::cartesian_product` | folder 19 file 14 |
@@ -31,7 +31,7 @@ nahi.
 | **`std::stacktrace`** | capture and print a call stack as a value | folder 45 |
 | **`std::move_only_function`** | like `std::function` but supports move-only callables (a move-only closure) | folder 19 file 16 |
 | **`std::string::contains`, `std::ranges::contains`** | the obvious "is X in here" | folder 10, folder 19 file 09 |
-| **`import std;`** | one module for the whole standard library (huge compile-time win, toolchain-dependent) | [`10-modules.md`](10-modules.md) |
+| **`import std;`** | one module for the whole standard library (compile-time win that grows with file count — measured ~1.7× per file, one-time module build cost) | [`10-modules.md`](10-modules.md), [`15`](15-cpp23-in-practice.md) section 10 |
 
 ---
 
@@ -39,7 +39,7 @@ nahi.
 
 | Feature | What / why | Detail |
 |---|---|---|
-| **Deducing `this`** (`explicit object parameter`) | `auto size(this Self&& self)` — one member function template covers const/non-const/`&`/`&&` and enables recursive lambdas, CRTP-without-CRTP | — |
+| **Deducing `this`** (`explicit object parameter`) | `auto size(this Self&& self)` — one member function template covers const/non-const/`&`/`&&` and enables recursive lambdas, CRTP-without-CRTP | [`15`](15-cpp23-in-practice.md) section 1 |
 | **`if consteval`** | branch cleanly on compile-time vs runtime evaluation (better than `std::is_constant_evaluated()`) | folder 21 file 13 |
 | **`[[assume(expr)]]`** | tell the optimizer `expr` is true (undefined behaviour if it isn't) — for provable invariants | file 12 |
 | **`static operator()` / `static operator[]`** | a stateless functor's call operator can be `static` → no `this` to pass | — |
@@ -116,10 +116,11 @@ The answer to "error handling without exceptions" (folder 23). Pre-C++23:
 ## Hands-on
 
 ```bash
-# this repo builds -std=c++20 -- to try C++23 bits:
-g++ -std=c++23 -Wall -Wextra 22-MODERN-CPP/examples/04_coroutines_generator.cpp -o co23
-# (if your GCC has <expected> / <generator>, swap the hand-rolled Generator for std::generator)
+# repo -std=c++20 pe build hota hai; C++23 examples ka naam *.cpp23.cpp hai
+# aur build.ps1 unhe apne aap -std=c++23 -lstdc++exp se compile karta hai:
+./build.ps1 fast 22-MODERN-CPP/examples/09_cpp23_in_practice.cpp23.cpp
 ```
+(Poora walkthrough: [`15-cpp23-in-practice.md`](15-cpp23-in-practice.md) — lekin pehle 06–14 padho.)
 
 Sketch: rewrite a parser to return `std::expected<Config, Error>` with a monadic
 chain; a `std::flat_map` price-level structure; a recursive lambda via deducing
@@ -195,10 +196,14 @@ struct S { void f(this S& self); };   // `f` is now a template -- can't be virtu
 
    <details><summary>Answer</summary>
 
-   `std::map` is a node-per-element tree → `log n` cache misses per lookup.
+   `std::map` is a node-per-element tree (har node ek alag heap allocation).
    `std::flat_map` is a sorted `std::vector` (keys) + a parallel vector (values)
-   → contiguous, ~2 cache misses, `O(log n)` binary search, but `O(n)` insert.
-   The cache-friendly trade-off from folder 20 file 17, now in the standard.
+   → contiguous, `O(log n)` binary search, but `O(n)` insert.
+
+   ⚠️ Par "hamesha tez" mat bolna — [`15`](15-cpp23-in-practice.md) section 9 mein
+   naapa gaya: bahut chhote size pe `map` thoda tez nikla, bade size (~230k keys)
+   pe `flat_map` lookup kai guna tez, aur bade size pe random insert `flat_map` mein
+   bahut slow. Jawab: bada, read-mostly data → `flat_map`; baaki pe naap ke decide karo.
    </details>
 
 4. **Deducing this — recursive lambda:** write a factorial as a lambda that can

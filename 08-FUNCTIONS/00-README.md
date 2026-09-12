@@ -25,7 +25,8 @@ Aur yahan **call stack** samjhenge, jo pointers, recursion, aur debugging ka fou
 | 11 | `11-constexpr-functions.md` | `constexpr` functions deep, compile-time evaluation |
 | 12 | `12-function-attributes.md` | `noexcept`, `[[nodiscard]]`, `[[maybe_unused]]`, `[[deprecated]]` |
 | 13 | `13-main-arguments.md` | `int main(int argc, char* argv[])` — command line arguments |
-| 14 | `14-exercises.md` | Practice + call stack tracing |
+| 14 | `14-namespaces.md` | Apne namespaces: nesting, alias, using-declaration vs directive, anonymous/inline namespace, **ADL** |
+| 15 | `15-exercises.md` | Practice + call stack tracing |
 
 ## Examples
 
@@ -43,7 +44,7 @@ Aur yahan **call stack** samjhenge, jo pointers, recursion, aur debugging ka fou
 1–2 hafte
 
 ## Status
-✅ **COMPLETE** (Batch 3, PHASE 3 ka aakhri folder). 13 lessons + exercises + 7
+✅ **COMPLETE** (Batch 3, PHASE 3 ka aakhri folder). 14 lessons + exercises + 8
 compile-verified examples. Highlights: **call stack deep dive** (frames,
 prologue/epilogue, real assembly), `05_stack_overflow.cpp` (deliberate crash),
 measured — fib exponential (~11x per +5), inline vs real-call (~6x, ~1.9 ns/call).

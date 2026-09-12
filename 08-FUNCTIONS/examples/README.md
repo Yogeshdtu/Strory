@@ -9,6 +9,7 @@
 | `05_stack_overflow.cpp` | 05, 09 | ⚠️ **Jaan-boojh kar CRASH** — no base case → stack overflow. Compile OK, run pe crash |
 | `06_inline_asm_check.cpp` | 05, 10 | Inlining ka assembly + benchmark — **inline vs real-call ~6x, ~1.9 ns/call** |
 | `07_command_line_args.cpp` | 13 | `argc`/`argv`, `argv[argc] == nullptr`, `--sum` flag parsing, `from_chars` |
+| `08_namespaces.cpp` | 14 | Do exchanges ke `lot_size` (naam ki takkar nahi), namespace reopen, nested `a::b::c` + alias, `::global`, using-declaration vs directive, anonymous namespace (internal linkage), inline namespace (versioning), **ADL** (`getline` bina `std::`, `std::operator<<`). ⚠️ `-Wshadow` warning jaan-boojh kar (global `limit` ko chhupana) |
 
 ## Compile karne ka tarika
 
@@ -74,7 +75,7 @@ for f in 08-FUNCTIONS/examples/0[1234670]*.cpp; do
       && "/tmp/$(basename "$f" .cpp)"
 done
 
-# quick compile-check (saari 7):
+# quick compile-check (saari 8):
 ./build.ps1 folder 08-FUNCTIONS          # Windows
 make folder DIR=08-FUNCTIONS             # Linux/Mac/Git-Bash
 ```

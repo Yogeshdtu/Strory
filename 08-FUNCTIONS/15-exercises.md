@@ -1,7 +1,7 @@
-# 14 — Folder 08 Revision + Exercises
+# 15 — Folder 08 Revision + Exercises
 
 ## Prerequisites
-Is folder ke saare lessons (01–13) aur saat examples chalaye hue (`05_stack_overflow`
+Is folder ke saare lessons (01–14) aur aath examples chalaye hue (`05_stack_overflow`
 ko haath se — woh crash hota hai).
 
 ---
@@ -63,6 +63,12 @@ ko haath se — woh crash hota hai).
 ### main
 39. `main` ke valid signatures? `argc` min value?
 40. `argv[argc]` kya hai? `argv` strings ka lifetime?
+
+### Namespaces
+41. Namespace ki runtime cost? Symbol naam pe kya asar?
+42. `using nse::f;` vs `using namespace nse;` — fark, aur header mein kya kabhi nahi?
+43. Anonymous namespace kya karta hai? `nm` mein kaise pehchanoge?
+44. ADL kya hai? `std::cout << s` mein ADL kahan hai?
 
 ---
 
@@ -131,6 +137,21 @@ std::cout << "reached";
 ```
 <details><summary>Answer</summary>`reached` printed — par `bad()` returns dangling reference; `int y = bad()` is UB (may print garbage / crash / work). `-Wreturn-local-addr` warns.</details>
 
+### B9
+```cpp
+int n = 5;
+namespace cfg { int n = 7; }
+int main() {
+    int n = 9;
+    {
+        using cfg::n;
+        std::cout << n;
+    }
+    std::cout << n << ::n;
+}
+```
+<details><summary>Answer</summary>`795` — andar ke block mein `using cfg::n;` ne `cfg::n` (7) ko laaya aur bahar wale local `n` ko chhupa diya. Block khatam hote hi local `n` (9) wapas, aur `::n` global (5). (GCC 16.2 pe chala ke check kiya.)</details>
+
 ---
 
 ## PART C — Find the bug
@@ -193,6 +214,16 @@ int main(int argc, char* argv[]) {
 }
 ```
 <details><summary>Answer</summary>`argc` check nahi — agar sirf `./prog` diya to `argv[2]` OOB (past `nullptr`). Pehle `if (argc < 3) { usage; return 2; }`.</details>
+
+### C9
+```cpp
+namespace md  { int parse(const char*) { return 1; } }
+namespace oms { int parse(const char*) { return 2; } }
+using namespace md;
+using namespace oms;
+int main() { return parse("x"); }
+```
+<details><summary>Answer</summary>Compile error: `call of overloaded 'parse(const char [2])' is ambiguous` — dono using-directives ne dono `parse` dikha diye. Fix: `md::parse("x")` likho, ya global scope ki using-directives hatao (file 14, Trap 1).</details>
 
 ---
 
@@ -275,14 +306,16 @@ Ek skewed binary tree (linked list jaisa, 10^6 nodes) banao. `height()` recursiv
 [ ] Mujhe constexpr functions (dual use), consteval, if constexpr pata hain
 [ ] Mujhe noexcept, [[nodiscard]], [[likely]], [[gnu::const]] ke effects pata hain
 [ ] Main main(argc, argv) se CLI args parse kar sakta hoon (from_chars, span)
-[ ] Maine saat examples chalaye hain
+[ ] Main apne namespaces bana sakta hoon (nesting, alias, anonymous, inline) aur using-declaration vs directive ka fark jaanta hoon
+[ ] Mujhe ADL samajh aata hai (getline bina std::, operator<<)
+[ ] Maine aath examples chalaye hain
 ```
 
 **Scoring:**
-- **23–27** → Excellent. Batch 3 poora! Folder 09 (Arrays) pe jao. 🎯
-- **17–22** → Achha. Miss hue lessons dobara — khaas kar 05 (call stack).
-- **10–16** → Files 05, 08, 09, 10 dobara. Examples + gdb try karo.
-- **< 10** → Poora folder dobara. Call stack lesson 05 sabse zaroori hai.
+- **25–29** → Excellent. Batch 3 poora! Folder 09 (Arrays) pe jao. 🎯
+- **18–24** → Achha. Miss hue lessons dobara — khaas kar 05 (call stack).
+- **11–17** → Files 05, 08, 09, 10, 14 dobara. Examples + gdb try karo.
+- **< 11** → Poora folder dobara. Call stack lesson 05 sabse zaroori hai.
 
 ---
 

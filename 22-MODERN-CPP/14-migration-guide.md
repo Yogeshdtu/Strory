@@ -318,4 +318,4 @@ struct Cache { Data d; mutable Stats s; auto operator<=>(const Cache&) const = d
 ---
 
 ## Next
-→ [`15-exercises.md`](15-exercises.md)
+→ [`15-cpp23-in-practice.md`](15-cpp23-in-practice.md)

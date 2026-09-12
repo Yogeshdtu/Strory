@@ -10,6 +10,10 @@
 | `06_spaceship.cpp` | 11 | `= default` `<=>` (all six operators); custom `<=>` by key; `strong` / `weak` / `partial` ordering (NaN → all comparisons false); custom `<=>` needs a hand-written `==` |
 | `07_format_print.cpp` | 13 | `std::format` basics, positional args, full spec mini-language (align/fill/width/precision/bases/sign), a formatted table, a **custom `std::formatter<Price>`**, `std::format_to_n` into a `char[64]` (no allocation) |
 | `08_legacy_to_modern.cpp` | 14, 01 | one program twice: `namespace legacy` (C++98 idioms — iterator loops, functor structs, raw owning pointers, verbose map find/insert) vs `namespace modern` (range-for, lambdas, ranges pipelines, `max_element` + projection, `operator[]`, structured bindings) — same output |
+| `09_cpp23_in_practice.cpp23.cpp` | 15, 05 | **C++23, GCC 16.2 pe verified:** deducing `this` (ek getter teen overloads ki jagah + recursive lambda), `static operator()`, `m[r, c]` + `std::mdspan` view, `std::generator` lazy tick replay, `views::enumerate/zip/pairwise/chunk` + `ranges::to` + `fold_left`, `std::expected` chain, `std::move_only_function` (unique_ptr capture), `to_underlying`/`unreachable`/`byteswap` (wire bytes)/`contains`/`auto(x)`/`if consteval`, aur **measured** `std::flat_map` vs `std::map` (lookup 64 / 4k / 262k keys + random insert) — `-O2` pe chalao |
+| `10_cpp23_what_happens_next.cpp23.cpp` | 15 | lesson 15 ke "What happens next?" ke 4 sawaalon ka jawab-program: moved-from string, generator body kab chalti hai, moved-from `move_only_function`, `flat_map::emplace` duplicate key. Pehle khud jawab likho, phir chalao |
+
+> `*.cpp23.cpp` files ko `build.ps1` / `Makefile` apne aap `-std=c++23 -lstdc++exp` se build karte hain (`-lstdc++exp` MinGW pe `std::print` ke liye zaroori).
 
 ## Compile / run
 

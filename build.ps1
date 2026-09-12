@@ -25,6 +25,11 @@
   nahi hoti). Inhe Linux ya WSL pe verify karo:
       g++ -std=c++20 -O2 -pthread file.linux.cpp -o file && ./file
 
+  NOTE (*.cpp23.cpp): C++23 examples (deducing this, std::generator, flat_map,
+  std::print ...) ka naam `NN_name.cpp23.cpp` hota hai. Har target inhe apne aap
+  -std=c++23 se compile karta hai, aur -lstdc++exp link karta hai (MinGW pe
+  std::print ka terminal code usi library mein hai).
+
   NOTE (execution policy): agar "running scripts is disabled" error aaye:
       Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
   ya ek baar ke liye:
@@ -83,12 +88,21 @@ function Out-Exe ($src) {
     Join-Path $buildDir ([IO.Path]::GetFileNameWithoutExtension($src) + '.exe')
 }
 
+# *.cpp23.cpp files C++23 hain: -std=c++23 flags ke END mein (g++ aakhri -std maanta hai),
+# aur -lstdc++exp SOURCE ke BAAD (linker libraries order mein padhta hai).
+function Is-Cpp23 ($src) { return ($src -like '*.cpp23.cpp') }
+function Std-For  ($src) { if (Is-Cpp23 $src) { 'c++23' } else { $STD } }
+function Flags-For { param([string[]] $Flags, [string] $Src)
+    if (Is-Cpp23 $Src) { return $Flags + @('-std=c++23') } else { return $Flags } }
+function Libs-For ($src) { if (Is-Cpp23 $src) { return @('-lstdc++exp') } else { return @() } }
+
 # Chup-chaap compile (folder/checkall ke liye). Return $true agar exit code 0.
 function Try-Compile {
     param([string[]] $Flags, [string] $Src, [string] $OutExe)
     $errPath = Join-Path $buildDir '_stderr.txt'
     $outPath = Join-Path $buildDir '_stdout.txt'
-    $argLine = ($Flags -join ' ') + " `"$Src`" -o `"$OutExe`""
+    $Flags   = @(Flags-For $Flags $Src)
+    $argLine = ($Flags -join ' ') + " `"$Src`" -o `"$OutExe`" " + (@(Libs-For $Src) -join ' ')
     $p = Start-Process -FilePath $CXX -ArgumentList $argLine -NoNewWindow -Wait -PassThru `
         -RedirectStandardError $errPath -RedirectStandardOutput $outPath
     return ($p.ExitCode -eq 0)
@@ -97,9 +111,13 @@ function Try-Compile {
 # Compile jisme warnings/errors console pe dikhein (single-file targets ke liye).
 function Do-Compile {
     param([string[]] $Flags, [string] $Src, [string] $OutExe)
+    # @( ) zaroori: PowerShell ek-element array ko function return pe string bana deta hai,
+    # aur string ko @splat karne se g++ ko alag-alag characters milte hain.
+    $Flags = @(Flags-For $Flags $Src)
+    $libs  = @(Libs-For $Src)
     Info "Compiling $Src"
-    Write-Host "  $CXX $($Flags -join ' ') `"$Src`" -o `"$OutExe`"" -ForegroundColor DarkGray
-    & $CXX @Flags $Src -o $OutExe
+    Write-Host "  $CXX $($Flags -join ' ') `"$Src`" -o `"$OutExe`" $($libs -join ' ')" -ForegroundColor DarkGray
+    & $CXX @Flags $Src -o $OutExe @libs
     if ($LASTEXITCODE -ne 0) { Die "Compile FAIL (exit $LASTEXITCODE)" }
     Good "OK -> $OutExe"
 }
@@ -126,6 +144,7 @@ build.ps1 — CPP-MASTERY build helper (PowerShell)
 
   *.linux.cpp files (Linux-only syscalls) folder/checkall mein SKIP hoti hain --
   unhe Linux/WSL pe verify karo: g++ -std=c++20 -O2 -pthread f.linux.cpp -o f
+  *.cpp23.cpp files apne aap -std=c++23 + -lstdc++exp se build hoti hain.
 
   Override: $env:CXX (default g++), $env:STD (default c++20)
 '@
@@ -172,7 +191,7 @@ switch ($Command.ToLower()) {
     'asm' {
         Assert-Cxx
         $src = Resolve-Src $Target
-        $asm = & $CXX "-std=$STD" '-O2' '-S' '-masm=intel' $src '-o' '-'
+        $asm = & $CXX "-std=$(Std-For $src)" '-O2' '-S' '-masm=intel' $src '-o' '-'
         if (Get-Command c++filt -ErrorAction SilentlyContinue) { $asm = $asm | & c++filt }
         $asm | Where-Object { $_ -notmatch '^\s*\.' } | Select-Object -First 80
         break
@@ -180,7 +199,7 @@ switch ($Command.ToLower()) {
     'pp' {
         Assert-Cxx
         $src = Resolve-Src $Target
-        (& $CXX "-std=$STD" '-E' $src) | Select-Object -Last 40
+        (& $CXX "-std=$(Std-For $src)" '-E' $src) | Select-Object -Last 40
         break
     }
     'folder' {

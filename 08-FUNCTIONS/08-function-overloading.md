@@ -49,7 +49,7 @@ Ek call `f(args)` ke liye compiler:
 
 ### Phase 1 — Candidate set
 Saare `f` naam ke functions jo scope mein hain (+ ADL — argument-dependent
-lookup, folder 24).
+lookup, file 14).
 
 ### Phase 2 — Viable functions
 Un candidates mein se jo **is call ko accept kar sakte hain**:

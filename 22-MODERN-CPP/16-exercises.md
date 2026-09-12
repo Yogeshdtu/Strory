@@ -1,7 +1,7 @@
-# 15 — Exercises: modern C++
+# 16 — Exercises: modern C++
 
 ## Prerequisites
-- All of folder 22 (files 01–14)
+- All of folder 22 (files 01–15)
 
 ## Yeh file kya hai
 Practice — output prediction, "find the bug", refactoring, aur discussion. Har

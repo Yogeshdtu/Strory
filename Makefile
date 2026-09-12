@@ -48,6 +48,11 @@ SAN_FLAGS   = -std=$(STD) $(WARN) -g -O1 -fsanitize=address,undefined \
 
 BUILD_DIR = .build
 
+# *.cpp23.cpp = C++23 example. -std=c++23 flags ke BAAD aata hai (g++ aakhri -std maanta hai),
+# -lstdc++exp source ke BAAD (MinGW pe std::print ka terminal code usi library mein hai).
+STD23  = $(if $(findstring .cpp23.cpp,$(FILE)),-std=c++23,)
+LIBS23 = $(if $(findstring .cpp23.cpp,$(FILE)),-lstdc++exp,)
+
 .PHONY: run build fast san asm pp folder checkall clean help
 
 # Default target
@@ -58,30 +63,30 @@ run: build
 build: guard
 	@mkdir -p $(BUILD_DIR)
 	@echo "Compiling $(FILE) [debug]..."
-	@$(CXX) $(DEBUG_FLAGS) "$(FILE)" -o $(BUILD_DIR)/$(notdir $(basename $(FILE)))
+	@$(CXX) $(DEBUG_FLAGS) $(STD23) "$(FILE)" -o $(BUILD_DIR)/$(notdir $(basename $(FILE))) $(LIBS23)
 	@echo "OK -> $(BUILD_DIR)/$(notdir $(basename $(FILE)))"
 
 fast: guard
 	@mkdir -p $(BUILD_DIR)
 	@echo "Compiling $(FILE) [-O2]..."
-	@$(CXX) $(FAST_FLAGS) "$(FILE)" -o $(BUILD_DIR)/$(notdir $(basename $(FILE)))
+	@$(CXX) $(FAST_FLAGS) $(STD23) "$(FILE)" -o $(BUILD_DIR)/$(notdir $(basename $(FILE))) $(LIBS23)
 	@echo "──────────── OUTPUT ────────────"
 	@$(BUILD_DIR)/$(notdir $(basename $(FILE)))
 
 san: guard
 	@mkdir -p $(BUILD_DIR)
 	@echo "Compiling $(FILE) [sanitizers]..."
-	@$(CXX) $(SAN_FLAGS) "$(FILE)" -o $(BUILD_DIR)/$(notdir $(basename $(FILE)))_san
+	@$(CXX) $(SAN_FLAGS) $(STD23) "$(FILE)" -o $(BUILD_DIR)/$(notdir $(basename $(FILE)))_san $(LIBS23)
 	@echo "──────────── OUTPUT ────────────"
 	@$(BUILD_DIR)/$(notdir $(basename $(FILE)))_san
 
 asm: guard
 	@mkdir -p $(BUILD_DIR)
-	@$(CXX) -std=$(STD) -O2 -S -masm=intel "$(FILE)" -o - | c++filt | \
+	@$(CXX) -std=$(STD) $(STD23) -O2 -S -masm=intel "$(FILE)" -o - | c++filt | \
 	  grep -v "^\s*\." | head -80
 
 pp: guard
-	@$(CXX) -std=$(STD) -E "$(FILE)" | tail -40
+	@$(CXX) -std=$(STD) $(STD23) -E "$(FILE)" | tail -40
 
 folder:
 	@if [ -z "$(DIR)" ]; then echo "Usage: make folder DIR=03-VARIABLES-DATA-TYPES"; exit 1; fi
@@ -90,7 +95,8 @@ folder:
 	for f in $(DIR)/examples/*.cpp; do \
 	  [ -e "$$f" ] || continue; \
 	  printf "%-55s " "$$f"; \
-	  if $(CXX) $(DEBUG_FLAGS) "$$f" -o $(BUILD_DIR)/tmp 2>/dev/null; then \
+	  x=""; l=""; case "$$f" in *.cpp23.cpp) x=-std=c++23; l=-lstdc++exp;; esac; \
+	  if $(CXX) $(DEBUG_FLAGS) $$x "$$f" -o $(BUILD_DIR)/tmp $$l 2>/dev/null; then \
 	    echo "OK"; \
 	  else echo "FAIL"; fail=1; fi; \
 	done; \
@@ -100,7 +106,8 @@ checkall:
 	@mkdir -p $(BUILD_DIR)
 	@ok=0; bad=0; \
 	for f in $$(find . -name '*.cpp' -not -path './$(BUILD_DIR)/*'); do \
-	  if $(CXX) -std=$(STD) -Wall -Wextra "$$f" -o $(BUILD_DIR)/tmp 2>/dev/null; then \
+	  x=""; l=""; case "$$f" in *.cpp23.cpp) x=-std=c++23; l=-lstdc++exp;; esac; \
+	  if $(CXX) -std=$(STD) $$x -Wall -Wextra "$$f" -o $(BUILD_DIR)/tmp $$l 2>/dev/null; then \
 	    ok=$$((ok+1)); \
 	  else \
 	    bad=$$((bad+1)); echo "FAIL: $$f"; \

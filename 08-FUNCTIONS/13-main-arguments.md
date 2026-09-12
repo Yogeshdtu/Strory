@@ -299,4 +299,4 @@ Shell exit codes `0..255` (8-bit). `return 300;` → `44` ban jaata hai POSIX pe
 ---
 
 ## Next
-→ [`14-exercises.md`](14-exercises.md)
+→ [`14-namespaces.md`](14-namespaces.md)

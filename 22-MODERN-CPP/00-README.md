@@ -25,7 +25,8 @@ hai — standard by standard, feature by feature.
 | 12 | `12-attributes.md` | `[[nodiscard]]`, `[[likely]]`/`[[unlikely]]`, `[[assume]]` (C++23) |
 | 13 | `13-format-and-print.md` | `std::format`, `std::print`, custom formatters |
 | 14 | `14-migration-guide.md` | Purana C++ → modern C++, before/after examples |
-| 15 | `15-exercises.md` | Practice + refactoring exercises |
+| 15 | `15-cpp23-in-practice.md` | C++23 chala ke + naap ke: deducing `this`, `std::generator`, `mdspan`, ranges additions, `move_only_function`, `import std;` setup, **measured** `flat_map` vs `map` |
+| 16 | `16-exercises.md` | Practice + refactoring exercises |
 
 ## Examples
 
@@ -44,10 +45,14 @@ hai — standard by standard, feature by feature.
 3–4 hafte
 
 ## Status
-✅ **COMPLETE (Batch 7 — PHASE 12).** 14 lessons (`01`–`14`) + `15-exercises.md`
-+ 8 examples (7 `.cpp` + the multi-file `05_modules_demo/`). Sab `.cpp` `-Wall
+✅ **COMPLETE (Batch 7 — PHASE 12).** 15 lessons (`01`–`15`) + `16-exercises.md`
++ 10 examples (9 `.cpp` + the multi-file `05_modules_demo/`). Sab `.cpp` `-Wall
 -Wextra -Wpedantic -Wshadow -Wconversion -Wsign-conversion` pe clean (`./build.ps1
 folder 22-MODERN-CPP`); modules demo `-fmodules-ts` pe separately verified.
+
+**Deepening (gap fix, GCC 16.2):** `15-cpp23-in-practice.md` + do C++23 examples
+(`09_cpp23_in_practice.cpp23.cpp`, `10_cpp23_what_happens_next.cpp23.cpp`). `*.cpp23.cpp`
+files ko `build.ps1`/`Makefile` apne aap `-std=c++23 -lstdc++exp` se build karte hain.
 
 - `01_lambdas_all`: `sizeof([x1,x2]{})`=16, `sizeof([]{})`=1, `sizeof(std::function)`=32.
 - `03_ranges_pipelines` (5M int64): ranges pipeline ~6.5 ms vs hand loop ~10 ms
