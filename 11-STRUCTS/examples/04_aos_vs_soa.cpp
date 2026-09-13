@@ -32,6 +32,27 @@ struct Quote {
     std::int32_t seq;
 };   // 32 bytes
 
+// ============================================================
+//  KERNELS -- [[gnu::noipa]] kyun?
+// ============================================================
+// Pehle yeh loops seedha main() mein the: `for (r < REPS) { m = 0; scan; maxAoS = m; }`.
+// GCC 16.2 -O2 ne dekha ki sirf AAKHRI rep ka result use hota hai aur scan ka koi
+// side effect nahi -> pehle 29 reps DEAD CODE maan ke hata diye. "30 reps" asal mein
+// 1 rep naap rahe the (~8 ms). noipa = compiler is function ke andar jhaank ke
+// "pure hai, result same hai" wala faisla nahi kar sakta -> har call sach mein chalti hai.
+// Sabak: benchmark ka number physically possible hai ya nahi, hamesha check karo.
+[[gnu::noipa]] std::int32_t maxBidAoS(const std::vector<Quote>& aos) {
+    std::int32_t m = 0;
+    for (const Quote& q : aos) if (q.bid > m) m = q.bid;   // stride 32 B -- 28/32 bekaar
+    return m;
+}
+
+[[gnu::noipa]] std::int32_t maxBidSoA(const std::vector<std::int32_t>& bid) {
+    std::int32_t m = 0;
+    for (std::int32_t b : bid) if (b > m) m = b;            // contiguous -- poori line kaam ki
+    return m;
+}
+
 int main() {
     std::vector<Quote> aos(N);
     for (std::size_t i = 0; i < N; ++i) {
@@ -67,18 +88,10 @@ int main() {
     std::int32_t maxAoS = 0, maxSoA = 0;
 
     auto t0 = std::chrono::steady_clock::now();
-    for (int r = 0; r < REPS; ++r) {
-        std::int32_t m = 0;
-        for (const Quote& q : aos) if (q.bid > m) m = q.bid;   // stride 32 B -- 28/32 wasted
-        maxAoS = m;
-    }
+    for (int r = 0; r < REPS; ++r) maxAoS = maxBidAoS(aos);
     auto t1 = std::chrono::steady_clock::now();
 
-    for (int r = 0; r < REPS; ++r) {
-        std::int32_t m = 0;
-        for (std::int32_t b : soa.bid) if (b > m) m = b;        // contiguous -- full lines, vectorizes
-        maxSoA = m;
-    }
+    for (int r = 0; r < REPS; ++r) maxSoA = maxBidSoA(soa.bid);
     auto t2 = std::chrono::steady_clock::now();
 
     std::cout << std::fixed << std::setprecision(1);

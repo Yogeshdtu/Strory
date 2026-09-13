@@ -5,7 +5,7 @@
 - `08-FUNCTIONS/08-function-overloading.md`, `06-CONDITIONS/04-switch-statement.md`
 
 ## Yeh topic abhi kyun
-`std::variant<A, B, C>` = "in mein se **exactly ek**" — ek **type-safe tagged
+`std::variant<A, B, C>` = "inmein se **exactly ek**" — ek **type-safe tagged
 union**. Active type khud track karta hai, sahi destructor chalata hai, galat
 access pe `throw` karta hai, aur `std::string` jaise non-trivial types safely
 handle karta hai. Raw union + manual tag ka safe replacement.
@@ -17,38 +17,43 @@ handle karta hai. Raw union + manual tag ka safe replacement.
 ```cpp
 #include <variant>
 
-std::variant<int, double, std::string> v;   // default: holds first alternative (int{} = 0)
+std::variant<int, double, std::string> v;   // default: pehla alternative (int{} = 0)
 
-v = 42;                                       // now holds int
-v = 3.14;                                     // now holds double (old int destroyed)
-v = std::string("hello");                     // now holds std::string
+v = 42;                                       // ab int
+v = 3.14;                                     // ab double (purana int destroy)
+v = std::string("hello");                     // ab std::string
 
-v.index()                                     // 2  (which alternative -- 0-based)
+v.index()                                     // 2  (kaunsa alternative -- 0 se ginti)
 std::holds_alternative<std::string>(v)        // true
 ```
 
-`sizeof(variant)` ≈ largest alternative + a small discriminant + alignment.
+`sizeof(variant)` ≈ sabse bada alternative + chhota discriminant + alignment. GCC 16.2 pe:
+`variant<int, double, std::string>` = **40** (`std::string` 32 + 1-byte index, 8 tak round up),
+`variant<char, char>` = **2**.
+
+Analogy: ek tiffin box jismein ek waqt mein ek hi cheez — roti, chawal ya dal — aur dhakkan pe ek sticker
+jo batata hai andar kya hai. Union mein sticker aapko khud lagana padta tha; `variant` khud lagata hai.
 
 ---
 
 ## Access — `get`, `get_if`, `visit`
 
 ```cpp
-// std::get<T> -- throws std::bad_variant_access if not holding T
+// std::get<T> -- T nahi hai to std::bad_variant_access throw
 try {
     int i = std::get<int>(v);
-} catch (const std::bad_variant_access&) { /* v holds something else */ }
+} catch (const std::bad_variant_access&) { /* v mein kuch aur hai */ }
 
-// std::get_if<T> -- returns T* or nullptr (no throw) -- prefer this for checks
+// std::get_if<T> -- T* ya nullptr (throw nahi) -- check ke liye yahi behtar
 if (const std::string* s = std::get_if<std::string>(&v)) {
     use(*s);
 }
 
-// std::visit -- dispatch on the active alternative (exhaustive, no throw)
+// std::visit -- active alternative pe dispatch (exhaustive, throw nahi)
 std::visit([](const auto& value) { std::cout << value; }, v);
 ```
 
-### `std::visit` with a handler set
+### Handler set ke saath `std::visit`
 
 ```cpp
 struct Handler {
@@ -58,9 +63,9 @@ struct Handler {
 };
 std::visit(Handler{}, v);
 
-// or the "overloaded" idiom (inline lambdas):
+// ya "overloaded" idiom (inline lambdas):
 template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
-template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;   // deduction guide (pre-C++20)
+template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;   // deduction guide -- sirf C++17 mein zaroori
 
 std::visit(overloaded{
     [](int i)                { /* ... */ },
@@ -69,8 +74,13 @@ std::visit(overloaded{
 }, v);
 ```
 
-⚠️ `std::visit` is **exhaustive** — if you miss an alternative, it won't compile
-(unlike a `switch` with a missing `case`).
+(Chala ke dekha: guide hatao to `-std=c++17` pe `class template argument deduction failed`; `-std=c++20` pe
+aggregate CTAD ki wajah se bina guide ke chalta hai.)
+
+⚠️ `std::visit` **exhaustive** hai — koi alternative chhoot gaya to compile nahi hoga (`switch` ke chhoote hue
+`case` jaisa chupchaap nahi). Error message library ke andar se aata hai aur ulajh sakta hai — GCC 16.2 pe:
+`error: no type named 'type' in 'struct std::invoke_result<overloaded<...>, std::string&>'` — matlab "`std::string`
+ke liye koi handler nahi mila".
 
 ---
 
@@ -78,31 +88,52 @@ std::visit(overloaded{
 
 | | `std::variant` | raw `union` + tag | `virtual` (base class ptr) |
 |---|---|---|---|
-| Type-safe | ✅ | ❌ (manual) | ✅ |
-| Closed set (all types known) | ✅ | ✅ | ❌ (open — any subclass) |
-| Non-trivial members | ✅ (handled) | ❌ (manual lifetime) | ✅ |
-| Storage | inline (no heap) | inline | heap (usually) + vptr |
-| Dispatch cost | branch on index (inlinable) | your `switch` | indirect call (vtable) |
-| Add a new type | edit the `variant` + all `visit`s (compiler flags misses) | edit everything | just add a subclass |
+| Type-safe | ✅ | ❌ (haath se) | ✅ |
+| Band set (saare types pata) | ✅ | ✅ | ❌ (khula — koi bhi subclass) |
+| Non-trivial members | ✅ (sambhalta hai) | ❌ (lifetime haath se) | ✅ |
+| Storage | inline (heap nahi) | inline | heap (aksar) + vptr |
+| Dispatch cost | index pe branch (inline ho sakta hai) | aapka `switch` | indirect call (vtable) |
+| Naya type jodna | `variant` + saare `visit` badlo (compiler chhoote pakdega) | sab kuch badlo | bas subclass jodo |
 
-**`std::variant` for a fixed, known set of alternatives** — it's the value-type,
-allocation-free, cache-friendly choice. **`virtual`** when the set is open /
-extensible (folder 16).
+**Band, pata hua set of alternatives → `std::variant`** — value-type, allocation-free, cache-friendly.
+**`virtual`** jab set khula / extensible ho (folder 16).
+
+### Andar se dekha — `Shape = variant<Circle, Square>` ka area (GCC 16.2, `-O2`)
+
+```
+areaV(variant<Circle,Square> const&):      // std::visit
+    cmp   BYTE PTR [rcx+8], 0      // 1-byte index check
+    jne   .square
+    ... pi * r * r ...
+    ret
+.square:
+    ... s * s ...
+    ret
+
+areaP(Base const&):                        // virtual
+    mov   rax, [rcx]               // vptr load
+    mov   rax, [rax+16]            // vtable se function pointer
+    cmp   rax, <VC::area>          // compiler ka andaaza (speculative devirtualization)
+    jne   ...                      //   galat nikla -> indirect call
+```
+
+`visit` = ek compare + branch, koi pointer chase nahi. `virtual` = do memory loads + compare, andaaza galat to
+indirect call. (Size dono ka 16 bytes: `Shape` = double + index; `VC` = vptr + double.)
 
 ---
 
-## Common uses
+## Aam use
 
 ```cpp
-// A parsed event -- one of a few message types
+// Parsed event -- kuch message types mein se ek
 using Event = std::variant<Quote, Trade, Reject>;
 std::vector<Event> stream;
 for (const Event& e : stream) std::visit(EventPrinter{}, e);
 
-// "value or error" -- though std::expected (C++23) / std::optional are usually better
+// "value ya error" -- par aam taur pe std::expected (C++23) / std::optional behtar
 std::variant<Result, ErrorCode> compute();
 
-// state machine -- each state is a struct
+// state machine -- har state ek struct
 using State = std::variant<Idle, Connecting, Connected, Failed>;
 ```
 
@@ -111,51 +142,46 @@ using State = std::variant<Idle, Connecting, Connected, Failed>;
 ## Gotchas
 
 ```cpp
-// valueless_by_exception -- if an assignment throws mid-change, variant can be "empty"
-if (v.valueless_by_exception()) { /* rare -- only if a move/copy threw */ }
+// valueless_by_exception -- assignment beech mein throw kare to variant "khaali" ho sakta hai
+if (v.valueless_by_exception()) { /* bahut kam -- sirf jab move/copy throw kare */ }
 
-// duplicate alternatives need the index, not the type
-std::variant<int, int> w;   // std::get<int>(w) -- ambiguous. std::get<0>(w)
+// duplicate alternatives -- type se nahi, index se
+std::variant<int, int> w;   // std::get<int>(w) -- compile error. std::get<0>(w)
 
-// v = {} does NOT reset -- assigns from an empty init-list (may not compile)
-v = 0;   // to "reset", assign a concrete value / std::monostate
+// v = {} -- RESET karta hai: value-initialized variant = PEHLA alternative
+v = {};                      // variant<int, double, std::string> -> index 0, int 0 (GCC 16.2 pe dekha)
 ```
 
-`std::monostate` — an empty alternative for "no value yet":
+`std::monostate` — "abhi koi value nahi" ke liye khaali alternative:
 ```cpp
-std::variant<std::monostate, Quote, Trade> v;   // default: monostate (valid "empty")
+std::variant<std::monostate, Quote, Trade> v;   // default: monostate (valid "khaali")
 ```
 
 ---
 
 ## Andar kya hota hai
 
-- `std::variant` = an aligned byte buffer sized for the largest alternative + an
-  `index` (usually 1 byte, sometimes folded). No heap.
-- Assignment → destroy the current alternative (if non-trivial), construct the new
-  one in place, update `index`.
-- `std::get_if<T>` → `index == index_of<T> ? reinterpret the buffer as T* : nullptr`.
-- `std::visit` → effectively a jump table on `index` to the right handler
-  instantiation; `-O2` inlines small visitors → a `switch`-like branch, no
-  indirect call.
-- `std::bad_variant_access` is thrown by `std::get` on mismatch (a real
-  `throw` — has a cost on that path).
+- `std::variant` = sabse bade alternative jitna aligned byte buffer + ek `index` (aksar 1 byte). Heap nahi.
+- Assignment → current alternative destroy (non-trivial ho to), naya wahin construct, `index` update.
+- `std::get_if<T>` → `index == index_of<T> ? buffer ko T* ki tarah : nullptr`.
+- `std::visit` → `index` pe sahi handler instantiation tak dispatch; `-O2` pe chhote visitors inline → `switch` jaisa
+  branch, indirect call nahi (upar assembly).
+- `std::bad_variant_access` `std::get` mismatch pe throw hota hai (asli `throw` — us path ki cost hai). GCC 16.2
+  ka message: `std::get: wrong index for variant`.
 
-> **HFT relevance:** `std::variant` is the go-to for closed event/message sets in
-> HFT app logic: `variant<Quote, Trade, Reject, ...>` over a feed, dispatched via
-> `std::visit` (inlined branch, no vtable, no heap — beats `virtual` for a fixed
-> set). It's cache-friendly (inline storage) and the exhaustiveness check catches
-> "forgot to handle the new message type" at compile time. On the very hottest
-> decode path, a hand-rolled tagged union of PODs (no `std::string`) + a raw
-> `switch` shaves the last bit. `virtual` is reserved for genuinely open
-> hierarchies. Folders 16, 36, 38.
+> **HFT relevance:** HFT app logic mein band event/message sets ke liye `std::variant` pehli pasand hai:
+> feed pe `variant<Quote, Trade, Reject, ...>`, `std::visit` se dispatch (inline branch, vtable nahi, heap nahi —
+> band set ke liye `virtual` se behtar; upar assembly mein ek `cmp` vs do loads). Inline storage → cache-friendly,
+> aur exhaustiveness check "naye message type ko handle karna bhool gaye" compile time pe pakadta hai. Sabse garam
+> decode path pe PODs ka haath se bana tagged union (andar `std::string` nahi) + raw `switch` aakhri thoda sa
+> bachata hai. `virtual` sirf sach mein khuli hierarchies ke liye. Folders 16, 36, 38.
 
 ---
 
 ## Hands-on
 
-`examples/06_variant.cpp` — `Event = variant<Quote, Trade, Reject>`, `index()`,
-`get`/`get_if`, `visit`, stream processing:
+`examples/06_variant.cpp` — `Event = variant<Quote, Trade, Reject>`, `index()`, `get`/`get_if`, `visit`, stream
+processing:
 
 ```bash
 ./build.ps1 11-STRUCTS/examples/06_variant.cpp
@@ -165,30 +191,36 @@ std::variant<std::monostate, Quote, Trade> v;   // default: monostate (valid "em
 
 ## ⚠️ Traps
 
-### Trap 1 — `std::get<T>` without checking
+### Trap 1 — bina check `std::get<T>`
 ```cpp
-int i = std::get<int>(v);   // ⚠️ throws if v isn't int. get_if, or holds_alternative first
+int i = std::get<int>(v);   // ⚠️ v int nahi to throw. get_if, ya pehle holds_alternative
 ```
 
 ### Trap 2 — non-exhaustive `visit`
 ```cpp
-std::visit(overloaded{ [](int){}, [](double){} }, v);   // ❌ won't compile if v can hold std::string
+std::visit(overloaded{ [](int){}, [](double){} }, v);   // ❌ v std::string rakh sakta hai to compile nahi hoga
 ```
-(This is a feature — but surprising if you expected a "default".)
+(Yeh feature hai — par "default" ki ummeed thi to chaunkaata hai. Default chahiye to ek generic
+`[](const auto&){}` lambda jodo — par tab naye types ki galti compiler nahi pakdega.)
 
 ### Trap 3 — duplicate alternatives + `get<T>`
 ```cpp
-std::variant<int, int> v;  std::get<int>(v);   // ❌ ambiguous. std::get<0>(v)
+std::variant<int, int> v;  std::get<int>(v);   // ❌ static assertion failed: T must occur exactly once in alternatives
 ```
 
-### Trap 4 — expecting `variant` to be "empty" by default
+### Trap 4 — `variant` ko default mein "khaali" samajhna
 ```cpp
-std::variant<Quote, Trade> v;   // holds a default-constructed Quote, NOT empty. Use std::monostate
+std::variant<Quote, Trade> v;   // default-constructed Quote rakhta hai, KHAALI NAHI. std::monostate use karo
 ```
 
-### Trap 5 — `variant` for an open/extensible set
+### Trap 5 — khule/extensible set ke liye `variant`
 ```cpp
-using Shape = std::variant<Circle, Square>;   // ⚠️ adding Triangle = edit every visit. virtual if open
+using Shape = std::variant<Circle, Square>;   // ⚠️ Triangle jodna = har visit badlo. Khula set hai to virtual
+```
+
+### Trap 6 — `v = {}` ko "no-op" ya "error" samajhna
+```cpp
+v = {};   // ⚠️ chupchaap PEHLE alternative pe reset (int 0) -- purani string destroy ho gayi
 ```
 
 ---
@@ -197,45 +229,56 @@ using Shape = std::variant<Circle, Square>;   // ⚠️ adding Triangle = edit e
 
 | ❌ Galat | ✅ Sahi |
 |---|---|
-| "`variant` heap-allocates" | Inline storage — largest alternative + tag |
-| "`std::get<T>` returns null on mismatch" | Throws — `std::get_if` returns null |
-| "`visit` has a default case" | Exhaustive — missing alternative = compile error |
-| "`variant` default-constructs empty" | Holds the first alternative; `std::monostate` for empty |
-| "`variant` replaces `virtual` always" | Only for a closed set; `virtual` for open hierarchies |
+| "`variant` heap allocate karta hai" | Inline storage — sabse bada alternative + tag |
+| "`std::get<T>` mismatch pe null deta hai" | Throw karta hai — `std::get_if` null deta hai |
+| "`visit` mein default case hota hai" | Exhaustive — chhoota alternative = compile error |
+| "`variant` default mein khaali banta hai" | Pehla alternative rakhta hai; khaali ke liye `std::monostate` |
+| "`v = {}` kuch nahi karta / compile nahi hota" | Pehle alternative pe reset karta hai |
+| "`variant` hamesha `virtual` ki jagah le leta hai" | Sirf band set ke liye; khuli hierarchy ke liye `virtual` |
 
 ---
 
 ## Exercises
 
-1. **Basics:** `std::variant<int, std::string> v;` — assign int, then string.
-   `v.index()` each time. `holds_alternative` checks.
+1. **Basics:** `std::variant<int, std::string> v;` — pehle int, phir string assign karo. Har baar `v.index()`.
+   `holds_alternative` checks.
 
-2. **`get_if` dispatch:** `std::vector<std::variant<int, double>>` — sum the ints
-   and the doubles separately using `get_if`.
+2. **`get_if` dispatch:** `std::vector<std::variant<int, double>>` — `get_if` se ints aur doubles ka alag-alag sum.
 
-3. **`visit` + overloaded:** the `overloaded` idiom to print each alternative of
-   `variant<Quote, Trade, Reject>` differently.
+3. **`visit` + overloaded:** `overloaded` idiom se `variant<Quote, Trade, Reject>` ke har alternative ko alag
+   tarah print karo.
 
-4. **Exhaustiveness:** remove one handler from your `visit` — what's the compile
-   error? Add a `std::monostate` alternative — now what?
+4. **Exhaustiveness:** apne `visit` se ek handler hatao — compile error kya aaya? Ek `std::monostate` alternative
+   jodo — ab kya?
+   <details><summary>Answer</summary>
 
-5. **State machine:** `variant<Idle, Running, Done>` with a `tick(State&)` that
-   `visit`s and transitions. Drive it.
+   Handler hatane pe GCC 16.2: `no type named 'type' in 'struct std::invoke_result<overloaded<...>, X&>'` (X = jiska
+   handler nahi). `std::monostate` jodne pe **wahi error** `std::monostate&` ke liye — naye alternative ka bhi
+   handler chahiye (`[](std::monostate) {}`). Yahi exhaustiveness ka faayda hai.
+   </details>
 
-6. **variant vs virtual:** implement "area of a shape" for `{Circle, Square}` both
-   ways (`std::variant` + `visit`, and a base class + `virtual`). Compare
-   `sizeof`, and the assembly of the dispatch (`-O2 -S`).
+5. **State machine:** `variant<Idle, Running, Done>` aur ek `tick(State&)` jo `visit` karke transition kare. Chalao.
+
+6. **variant vs virtual:** `{Circle, Square}` ke liye "area" dono tarah likho (`std::variant` + `visit`, aur base
+   class + `virtual`). `sizeof` milao, aur dispatch ka assembly (`-O2 -S`, functions pe `[[gnu::noipa]]`).
+   <details><summary>Answer (GCC 16.2, Windows x64)</summary>
+
+   `sizeof(Shape)` 16 (double + 1-byte index + padding), `sizeof(VC)` 16 (vptr + double). `visit`:
+   `cmp BYTE PTR [rcx+8], 0` + ek branch. `virtual`: vptr load, vtable se pointer load, speculative-devirtualization
+   `cmp`, miss hone pe indirect call.
+   </details>
 
 ---
 
 ## Interview questions
 
-1. `std::variant` vs raw union — 3 safety differences?
+1. `std::variant` vs raw union — 3 safety farq?
 2. `std::get` vs `std::get_if` — error behaviour?
 3. `std::visit` — exhaustiveness? `switch` se fark?
-4. `std::variant` vs `virtual` polymorphism — closed vs open set, cost?
+4. `std::variant` vs `virtual` polymorphism — band vs khula set, cost?
 5. `std::monostate` kya hai, kab chahiye?
 6. `std::variant` storage — heap ya inline?
+7. `v = {}` kya karta hai?
 
 ---
 

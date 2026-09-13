@@ -32,13 +32,13 @@ ka sabse bada lever hai.
 | File | Kya |
 |---|---|
 | `examples/01_struct_basics.cpp` | Struct banana aur use karna |
-| `examples/02_padding_demo.cpp` | Padding dekhna, `-Wpadded` |
-| `examples/03_struct_optimization.cpp` | Member reorder se size half |
-| `examples/04_aos_vs_soa.cpp` | AoS vs SoA — measured benchmark |
+| `examples/02_padding_demo.cpp` | Padding dekhna, `-Wpadded` (MinGW ki seema ke saath) |
+| `examples/03_struct_optimization.cpp` | Member reorder se size aadha |
+| `examples/04_aos_vs_soa.cpp` | AoS vs SoA — naapa hua benchmark |
 | `examples/05_unions.cpp` | Union aur type punning |
 | `examples/06_variant.cpp` | `std::variant` + `visit` |
-| `examples/07_enums.cpp` | `enum class` best practices |
-| `examples/08_market_data_struct.cpp` | HFT-style message struct with static_asserts |
+| `examples/07_enums.cpp` | `enum class` ke best practices |
+| `examples/08_market_data_struct.cpp` | HFT-style message struct, `static_assert`s ke saath |
 
 ## Time
 1–2 hafte
@@ -46,9 +46,12 @@ ka sabse bada lever hai.
 ## Status
 ✅ **COMPLETE** (Batch 4 — PHASE 4 ka aakhri folder). 12 lessons + exercises + 8
 compile-verified examples. Highlights: **padding deep dive** (member reorder →
-33–45% smaller, measured), packed wire structs + `memcpy` decode, **AoS vs SoA**
-(~1.6x–4x measured), `union`/`std::bit_cast`, `std::variant`, `enum class`,
-bitfields, `struct` vs `class`.
+33–45% chhota, naapa), packed wire structs + `memcpy` decode, **AoS vs SoA**
+(GCC 16.2 pe flags ke hisaab se 2.3×–10× naapa), `union`/`std::bit_cast`,
+`std::variant`, `enum class`, bitfields, `struct` vs `class`. Hinglish pass mein
+GCC 16.2 pe dobara verify: `-Wpadded`/bitfield layout pe MinGW ka `-mms-bitfields`,
+`#pragma pack` pe packed-member warning ka na aana, `v = {}` ka reset, aur
+`04_aos_vs_soa.cpp` ka dead-rep benchmark bug theek kiya.
 
 ## Next
 → [`../12-POINTERS/00-README.md`](../12-POINTERS/00-README.md)

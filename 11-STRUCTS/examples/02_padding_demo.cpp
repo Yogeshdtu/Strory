@@ -3,7 +3,9 @@
 // PADDING -- compiler struct members ke beech gaps daalta hai (alignment)
 // ============================================================
 //   g++ -std=c++20 -Wall -Wextra -Wshadow -g 02_padding_demo.cpp -o pad && ./pad
-//   Padding warnings:  g++ -std=c++20 -Wpadded 02_padding_demo.cpp -o /dev/null
+//   Padding warnings:  g++ -std=c++20 -Wpadded -mno-ms-bitfields 02_padding_demo.cpp -o /dev/null
+//   (MinGW pe -mms-bitfields default on hai -- us mode mein -Wpadded sirf TAIL padding
+//    batata hai; beech ki padding dekhne ke liye -mno-ms-bitfields, sirf audit ke liye)
 // ============================================================
 // Rule: har member apne size ke multiple address pe start hona chahiye
 // (natural alignment). double -> 8-byte boundary, int -> 4, short -> 2, char -> 1.
@@ -22,7 +24,7 @@ struct Bad {          // members chhote-bade mixed -> zyada padding
     char        c;    // offset 16       (1 byte)
     // 3 bytes PADDING (d ko 4-align chahiye)
     std::int32_t d;   // offset 20       (4 bytes)
-    // total 24 bytes  (16 useful, 8 padding)
+    // total 24 bytes  (14 kaam ke, 10 padding)
 };
 
 struct Good {         // wahi members, DESCENDING size order -> minimum padding
@@ -31,7 +33,7 @@ struct Good {         // wahi members, DESCENDING size order -> minimum padding
     char        a;    // offset 12
     char        c;    // offset 13
     // 2 bytes tail PADDING (size ko 8 ka multiple banane ke liye)
-    // total 16 bytes  (16 useful, 2 padding)  -- Bad se 8 bytes chhota
+    // total 16 bytes  (14 kaam ke, 2 padding)  -- Bad se 8 bytes chhota
 };
 
 struct ThreeChars { char a, b, c; };     // 3 bytes, align 1, NO padding

@@ -5,9 +5,9 @@
 - `05-OPERATORS/05-bitwise-operators.md` (masks, shifts)
 
 ## Yeh topic abhi kyun
-Bitfield = struct member jiske aap **exact number of bits** specify karte ho.
+Bitfield = struct member jiske liye aap **exact kitne bits** batate ho.
 `unsigned flags : 3;` → 3 bits. Memory-tight flags/packed fields ke liye — par
-portability issues bahut hain, aur aksar `enum class` flags + manual masks
+portability ki problems bahut hain, aur aksar `enum class` flags + manual masks
 behtar.
 
 ---
@@ -19,10 +19,9 @@ struct Packed {
     unsigned type     : 4;    // 4 bits  (0..15)
     unsigned priority : 3;    // 3 bits  (0..7)
     unsigned urgent   : 1;    // 1 bit   (0..1)
-    unsigned          : 0;    // ⟵ force next field to a new storage unit
+    unsigned          : 0;    // ⟵ agla field naye storage unit se shuru karo
     unsigned seq      : 24;   // 24 bits
-};
-// (compiler packs these into as few bytes as it can)
+};                            // sizeof 8 (GCC 16.2): pehla 4-byte unit (8 bits use), phir naya unit (24 bits)
 ```
 
 ```cpp
@@ -32,43 +31,62 @@ p.urgent = 1;
 if (p.priority == 7) { ... }
 ```
 
-`: 0` (unnamed, zero width) → "start the next bitfield in a fresh underlying
-unit" — useful for aligning a sub-group.
+`: 0` (bina naam, zero width) → "agla bitfield ek naye underlying unit mein shuru karo" — ek sub-group ko align
+karne ke kaam aata hai.
+
+Analogy: ek hi register ke page pe khaane kheench lena — "pehle 4 khaane type ke, agle 3 priority ke, 1 urgent ka".
+Jagah bachti hai, par doosre office ka register khaane kis taraf se ginta hai, woh unki marzi.
 
 ---
 
-## sizeof — packed, but rules are fuzzy
+## sizeof — tight, par niyam dhundhle
 
 ```cpp
-struct A { unsigned a : 4; unsigned b : 4; };          // 1 byte (both fit in 8 bits)
-struct B { unsigned a : 4; unsigned b : 6; };          // 2 bytes (10 bits -> 2 units)
-struct C { unsigned a : 20; unsigned b : 20; };        // 8 bytes (can't share a 32-bit unit)
+struct A { unsigned a : 4; unsigned b : 4; };          // 4 bytes -- 8 bits hi use, par unit `unsigned` (4 bytes, align 4)
+struct B { unsigned a : 4; unsigned b : 6; };          // 4 bytes -- 10 bits, ek hi 32-bit unit mein
+struct C { unsigned a : 20; unsigned b : 20; };        // 8 bytes -- 40 bits, do 32-bit units
+struct Status { std::uint8_t active : 1, priority : 3, retries : 4; };   // 1 byte -- unit uint8_t
 ```
 
-The compiler packs consecutive bitfields into the underlying type's storage units
-(`unsigned` → 32-bit units), spilling to the next unit when a field won't fit.
-`alignof` follows the underlying type.
+(Sab GCC 16.2 pe chala ke.) Compiler lagataar bitfields ko underlying type ke storage units mein bharta hai
+(`unsigned` → 32-bit units), field fit na ho to agle unit mein. `sizeof` aur `alignof` underlying type ke hisaab se
+round up hote hain — isliye sirf 8 bits wala `A` bhi 4 bytes ka hai. **1-byte bitfield struct chahiye to
+underlying type bhi `uint8_t` rakho** (`Status`).
 
 ---
 
-## ⚠️ Portability — bitfields are implementation-defined
+## ⚠️ Portability — bitfields implementation-defined hain
 
-The standard leaves a LOT unspecified:
+Standard bahut kuch khula chhodta hai:
 
-| Aspect | Specified? |
+| Pehlu | Standard tay karta hai? |
 |---|---|
-| Bit **order** within a unit (LSB-first vs MSB-first) | ❌ implementation-defined |
-| Whether a field can **straddle** a unit boundary | ❌ |
-| Padding between fields | ❌ |
-| Signedness of plain `int : n` (`int` vs `unsigned`) | ❌ (use explicit `unsigned`/`signed`) |
-| Layout across compilers / architectures | ❌ — **different** |
+| Unit ke andar bit **order** (LSB-first vs MSB-first) | ❌ implementation-defined |
+| Field unit ki boundary **paar** kar sakta hai ya nahi | ❌ |
+| Fields ke beech padding | ❌ |
+| Alag underlying types (`uint8_t : 4` phir `uint32_t : 4`) ek unit share karein ya nahi | ❌ |
+| Compilers / architectures ke beech layout | ❌ — **alag** |
 
-**→ Bitfields are NOT safe for wire/file formats** where you need exact bytes
-across systems. GCC and MSVC lay them out differently. Use **manual masks +
-shifts** for anything portable:
+### Naapa hua: ek hi compiler, ek flag, alag layout
+MinGW GCC Microsoft-compatible layout ke liye default mein `-mms-bitfields` on rakhta hai (file 05 mein `-Wpadded`
+ke saath dekha tha):
 
 ```cpp
-// portable "type in bits 0-3, priority in bits 4-6, urgent in bit 7"
+struct Mixed { std::uint8_t a : 4; std::uint32_t b : 4; };
+```
+
+| GCC 16.2 (MinGW) | `sizeof(Mixed)` |
+|---|---|
+| default (`-mms-bitfields`, MSVC jaisa) | **8** — type badla to naya unit |
+| `-mno-ms-bitfields` (Linux GCC jaisa) | **4** — dono ek unit mein |
+
+Wahi source, wahi machine, sirf ek flag → 8 vs 4 bytes. Ab socho do alag compilers ya do alag OS pe.
+
+**→ Bitfields wire/file formats ke liye SAFE NAHI** jahan systems ke beech exact bytes chahiye. **Manual masks +
+shifts** use karo:
+
+```cpp
+// portable "type bits 0-3 mein, priority bits 4-6 mein, urgent bit 7 mein"
 constexpr std::uint8_t TYPE_MASK = 0x0F;
 constexpr std::uint8_t PRIO_SHIFT = 4, PRIO_MASK = 0x70;
 constexpr std::uint8_t URGENT_BIT = 0x80;
@@ -81,26 +99,23 @@ std::uint8_t pack(std::uint8_t type, std::uint8_t prio, bool urgent) {
 std::uint8_t getType(std::uint8_t b) { return b & TYPE_MASK; }
 ```
 
-You control every bit; it's identical everywhere.
+Har bit aapke haath mein; har jagah same.
 
 ---
 
-## When bitfields are OK
+## Bitfields kab theek hain
 
-- **Internal, single-compiler** data where memory really matters and you never
-  serialize it.
-- Readability of `p.urgent = 1` vs `flags |= URGENT_BIT` — for local structs.
-- Mapping **hardware registers** on a known platform (embedded) — with the
-  compiler's documented layout.
+- **Internal, ek hi compiler** wala data jahan memory sach mein matter kare aur kabhi serialize na ho.
+- Local structs mein `p.urgent = 1` vs `flags |= URGENT_BIT` ki padhne mein aasaani.
+- Jaane-pehchaane platform pe **hardware registers** map karna (embedded) — compiler ke documented layout ke saath.
 
-## When to avoid
+## Kab bacho
 
 - Wire/file formats → manual masks.
-- Anything crossing compiler/arch boundaries.
-- Hot paths where the compiler's read-modify-write for a bitfield (load unit,
-  mask, shift, or, store) is more work than you'd like — though usually fine.
-- Taking `&` of a bitfield → **not allowed** (`error: cannot bind pointer to
-  bit-field`).
+- Jo bhi compiler/arch/flags ki boundary paar kare.
+- Hot paths jahan bitfield ka read-modify-write (unit load, mask, shift, or, store) zyada kaam lage — waise aam
+  taur pe theek hai.
+- Bitfield ka `&` → **allowed nahi** (`error: attempt to take address of bit-field` — GCC 16.2).
 
 ---
 
@@ -108,35 +123,33 @@ You control every bit; it's identical everywhere.
 
 | | Bitfield | `enum class` + masks | `std::bitset<N>` |
 |---|---|---|---|
-| Exact wire layout | ❌ (impl-defined) | ✅ (you control) | ❌ (impl-defined) |
-| Named access | ✅ `p.urgent` | ✅ `has(f, Flag::Urgent)` | ⚠️ indexed |
-| Bit count | any (1..) | you compute | N (compile-time) |
-| `&` of a single bit | ❌ | n/a | n/a |
-| Best for | internal packed structs | portable flag sets | large fixed bit arrays |
+| Exact wire layout | ❌ (impl-defined) | ✅ (aapke haath mein) | ❌ (impl-defined) |
+| Naam se access | ✅ `p.urgent` | ✅ `has(f, Flag::Urgent)` | ⚠️ index se |
+| Bit count | koi bhi (1..) | aap hisaab lagao | N (compile-time) |
+| Ek bit ka `&` | ❌ | n/a | n/a |
+| Best for | internal packed structs | portable flag sets | bade fixed bit arrays |
 
-For order flags / message flags in HFT: **`enum class : uint32_t` + defined
-`operator|`/`&`** (file 10) — portable, named, zero-cost.
+HFT mein order flags / message flags ke liye: **`enum class : uint32_t` + defined `operator|`/`&`** (file 10) —
+portable, naam wale, zero-cost.
 
 ---
 
 ## Andar kya hota hai
 
-- The compiler allocates storage units of the field's declared type (`unsigned`
-  → 4 bytes) and assigns each bitfield a (start bit, width) within a unit.
-- Reading `p.priority` → `load unit; (unit >> start) & ((1 << width) - 1)`.
-- Writing → `load unit; unit = (unit & ~mask) | ((value << start) & mask); store
-  unit` — a **read-modify-write** even for one bit. Not atomic (bad for
-  concurrent access — folder 26).
-- `: 0` → round the "next bit" cursor up to the start of a new unit.
-- The exact (start, width, byte) assignment is the part the standard doesn't pin
-  down.
+- Compiler field ke declared type ke storage units allocate karta hai (`unsigned` → 4 bytes) aur har bitfield ko
+  unit ke andar (start bit, width) deta hai.
+- `p.priority` padhna → `unit load; (unit >> start) & ((1 << width) - 1)`.
+- Likhna → `unit load; unit = (unit & ~mask) | ((value << start) & mask); unit store` — ek bit ke liye bhi
+  **read-modify-write**. Atomic nahi (concurrent access ke liye bura — folder 26).
+- `: 0` → "agla bit" cursor ko naye unit ki shuruaat tak round up.
+- Exact (start, width, byte) assignment hi woh hissa hai jo standard pakka nahi karta. GCC x86 pe LSB-first dikha:
+  `Status{active=1, priority=5}` ka raw byte `0x0b` (`0b0000'1011` — bit 0 active, bits 1–3 priority).
 
-> **HFT relevance:** Bitfields are mostly avoided in HFT for anything that
-> crosses a boundary — exchange protocols specify bits precisely, and you match
-> them with **explicit masks/shifts** so GCC/Clang/whatever produce identical
-> bytes. Internal packed status words sometimes use bitfields for readability
-> (single compiler, never serialized). Concurrent flag updates never use
-> bitfields (non-atomic RMW) — `std::atomic<uint32_t>` + bit ops. Folders 27, 38.
+> **HFT relevance:** HFT mein boundary paar karne wali kisi bhi cheez ke liye bitfields se bacha jaata hai —
+> exchange protocols bits ekdum saaf batate hain, aur unhe **explicit masks/shifts** se match kiya jaata hai taaki
+> GCC/Clang/koi bhi compiler same bytes banaye (upar dekha: ek flag se `sizeof` 8 vs 4). Internal packed status words
+> kabhi readability ke liye bitfields use karte hain (ek compiler, kabhi serialize nahi). Concurrent flag updates
+> kabhi bitfields se nahi (non-atomic RMW) — `std::atomic<uint32_t>` + bit ops. Folders 27, 38.
 
 ---
 
@@ -144,6 +157,7 @@ For order flags / message flags in HFT: **`enum class : uint32_t` + defined
 
 ```cpp
 #include <cstdint>
+#include <cstring>
 #include <iostream>
 struct Status {
     std::uint8_t active   : 1;
@@ -155,7 +169,9 @@ int main() {
     Status s{};
     s.priority = 5; s.active = 1;
     std::cout << (int)s.priority << " " << (int)s.active << "\n";
-    // portable equivalent with masks -- write both, compare bytes
+    std::uint8_t raw; std::memcpy(&raw, &s, 1);
+    std::cout << std::hex << (int)raw << "\n";   // GCC x86: b
+    // masks wala portable version bhi likho -- dono ke bytes milao
 }
 ```
 
@@ -167,30 +183,39 @@ g++ -std=c++20 -Wall -Wextra bf.cpp -o bf && ./bf
 
 ## ⚠️ Traps
 
-### Trap 1 — bitfields for a wire format
+### Trap 1 — wire format ke liye bitfields
 ```cpp
 struct WireHdr { unsigned ver : 4; unsigned type : 4; };   // ⚠️ bit order impl-defined. Masks
 ```
 
-### Trap 2 — value doesn't fit
+### Trap 2 — value fit nahi hoti
 ```cpp
-unsigned x : 3;  x = 10;   // ⚠️ 10 doesn't fit in 3 bits -> truncated to 2 (implementation-defined-ish)
+unsigned x : 3;  x = 10;   // ⚠️ 3 bits mein 10 nahi aata -> 10 mod 8 = 2
+```
+Unsigned bitfield ke liye yeh modulo (well-defined) hai. Constant ho to GCC 16.2 bina flag ke warn karta hai:
+`conversion from 'unsigned int' to 'unsigned char:3' changes value from '10' to '2' [-Woverflow]`. Runtime value
+ho to koi warning nahi.
+
+### Trap 3 — bitfield ka `&`
+```cpp
+auto* p = &s.priority;   // ❌ error: attempt to take address of bit-field
 ```
 
-### Trap 3 — `&` of a bitfield
+### Trap 4 — plain `int : n` ki signedness
 ```cpp
-auto* p = &s.priority;   // ❌ ERROR -- cannot take address of a bit-field
+struct S { int flag : 1; };  s.flag = 1;  if (s.flag == 1) // ⚠️ GCC: flag = -1, condition FALSE
 ```
-
-### Trap 4 — plain `int : n` signedness
-```cpp
-struct S { int flag : 1; };  s.flag = 1;  if (s.flag == 1) // ⚠️ int:1 may be signed -> holds -1, not 1
-```
-Use `unsigned x : n`.
+Signed 1-bit field sirf 0 aur -1 rakh sakta hai. GCC 16.2 pe `-Wall -Wextra` **chup** rehta hai; sirf `-Wconversion`
+bolta hai: `changes value from '1' to '-1'`. `unsigned x : n` use karo.
 
 ### Trap 5 — concurrent bitfield writes
 ```cpp
-// thread A: s.a = 1;   thread B: s.b = 1;   -- ⚠️ both RMW the same byte -> data race
+// thread A: s.a = 1;   thread B: s.b = 1;   -- ⚠️ dono ek hi unit ka RMW -> data race
+```
+
+### Trap 6 — `sizeof` ko bits ka jod samajhna
+```cpp
+struct A { unsigned a : 4; unsigned b : 4; };   // ⚠️ 8 bits, par sizeof 4 -- unit type ki alignment
 ```
 
 ---
@@ -199,43 +224,64 @@ Use `unsigned x : n`.
 
 | ❌ Galat | ✅ Sahi |
 |---|---|
-| "Bitfields have a portable layout" | Bit order / straddling / padding all impl-defined |
-| "Bitfields are safe for network structs" | No — use explicit masks/shifts |
-| "Writing one bit is a single store" | Read-modify-write of the whole unit |
-| "`int flag : 1` holds 0 or 1" | May be signed → holds 0 or -1. Use `unsigned` |
-| "Different bitfield writes to one struct are independent" | Same unit → RMW → data race if concurrent |
+| "Bitfields ka layout portable hai" | Bit order / boundary paar / padding sab impl-defined — ek MinGW flag se 8 vs 4 bytes |
+| "Bitfields network structs ke liye safe hain" | Nahi — explicit masks/shifts |
+| "8 bits ke bitfields = 1-byte struct" | Underlying type ki alignment: `unsigned` → 4 bytes |
+| "Ek bit likhna = ek store" | Poore unit ka read-modify-write |
+| "`int flag : 1` mein 0 ya 1" | Signed → 0 ya -1. `unsigned` use karo |
+| "Ek struct ke alag bitfield writes independent hain" | Same unit → RMW → concurrent ho to data race |
 
 ---
 
 ## Exercises
 
-1. **sizeof:** `struct A { unsigned a:4, b:4; };`, `struct B { unsigned a:4, b:6;
-   };`, `struct C { unsigned a:20, b:20; };` — `sizeof` each, explain.
+1. **sizeof:** `struct A { unsigned a:4, b:4; };`, `struct B { unsigned a:4, b:6; };`,
+   `struct C { unsigned a:20, b:20; };` — har ek ka `sizeof`, samjhao.
+   <details><summary>Answer (GCC 16.2)</summary>
 
-2. **Portable equivalent:** re-implement the `Status` struct from Hands-on as a
-   single `std::uint8_t` + `pack`/`unpack` functions with masks. Verify the byte
-   matches (or differs — that's the point) vs the bitfield version.
+   `A` **4**, `B` **4**, `C` **8**. `A` aur `B` ek 32-bit unit mein aa jaate hain (8 aur 10 bits); `sizeof` unit ke
+   size/alignment (4) tak round up. `C` ke 20 + 20 = 40 bits ek 32-bit unit mein nahi aate → do units → 8.
+   </details>
 
-3. **Overflow:** `unsigned x : 3; x = 9;` — print `x`. What happened?
+2. **Portable version:** Hands-on wale `Status` ko ek `std::uint8_t` + masks wale `pack`/`unpack` functions se dobara
+   banao. Bitfield version ka byte milao — mela ya nahi (yahi to point hai).
 
-4. **Signedness:** `struct S { int f : 1; };  s.f = 1;  std::cout << s.f;` — 1 or
-   -1? Change to `unsigned f : 1;` — now?
+3. **Overflow:** `unsigned x : 3; x = 9;` — `x` print karo. Kya hua?
+   <details><summary>Answer</summary>
 
-5. **`: 0`:** `struct P { unsigned a:4; unsigned :0; unsigned b:4; };` — `sizeof`?
-   Remove the `:0` — `sizeof`?
+   **1** (9 mod 8). GCC ne compile time pe warn kiya: `changes value from '9' to '1' [-Woverflow]`.
+   </details>
 
-6. **Wire-format the right way:** an 8-bit flags byte with `HIDDEN` (bit 0),
-   `POST_ONLY` (bit 1), `IOC` (bit 2) — `enum class Flag : uint8_t` + `operator|`
-   + `has()`. Round-trip through a raw byte.
+4. **Signedness:** `struct S { int f : 1; };  s.f = 1;  std::cout << s.f;` — 1 ya -1? `unsigned f : 1;` karo — ab?
+   <details><summary>Answer</summary>
+
+   `int f : 1` → **-1** (GCC 16.2; warning sirf `-Wconversion` pe). `unsigned f : 1` → **1**.
+   </details>
+
+5. **`: 0`:** `struct P { unsigned a:4; unsigned :0; unsigned b:4; };` — `sizeof`? `:0` hatao — `sizeof`?
+   <details><summary>Answer</summary>
+
+   `:0` ke saath **8** (b naye unit mein), bina **4**.
+   </details>
+
+6. **Wire-format sahi tareeqe se:** 8-bit flags byte jismein `HIDDEN` (bit 0), `POST_ONLY` (bit 1), `IOC` (bit 2) —
+   `enum class Flag : uint8_t` + `operator|` + `has()`. Raw byte ke through round-trip karo.
+
+7. **Layout flag:** `struct Mixed { std::uint8_t a : 4; std::uint32_t b : 4; };` ka `sizeof` default aur
+   `-mno-ms-bitfields` dono se (MinGW pe). Linux pe ho to `-mms-bitfields` try karo.
+   <details><summary>Answer (MinGW GCC 16.2)</summary>
+
+   Default **8**, `-mno-ms-bitfields` **4**.
+   </details>
 
 ---
 
 ## Interview questions
 
-1. Bitfield kya hai? `sizeof` kaise decide hota hai?
+1. Bitfield kya hai? `sizeof` kaise tay hota hai?
 2. Bitfields wire formats ke liye kyun unsafe (kya impl-defined hai)?
-3. Bitfield write — kya operation (single bit ke liye bhi)?
-4. `int x : 1` vs `unsigned x : 1` — signedness issue?
+3. Bitfield write — kaunsa operation hota hai (ek bit ke liye bhi)?
+4. `int x : 1` vs `unsigned x : 1` — signedness ka issue?
 5. Bitfield ka `&` kyun nahi le sakte?
 6. Portable packed flags — bitfield ya masks? Kyun?
 

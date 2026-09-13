@@ -1,6 +1,6 @@
 // 07_enums.cpp
 // ============================================================
-// enum vs enum class -- named constants, type safety
+// enum vs enum class -- naam wale constants, aur type safety
 // ============================================================
 //   g++ -std=c++20 -Wall -Wextra -Wshadow -g 07_enums.cpp -o en && ./en
 // ============================================================
@@ -9,21 +9,21 @@
 #include <iostream>
 #include <string_view>
 
-// ---- plain (unscoped) enum -- LEGACY, avoid ----
+// ---- plain (unscoped) enum -- PURANA tareeqa, bacho ----
 enum Color { Red, Green, Blue };            // Red=0, Green=1, Blue=2
-enum Status { Active, Inactive };           // ⚠️ Active=0 -- Color::Red se clash risk
+enum Status { Active, Inactive };           // ⚠️ Active=0 -- Red bhi 0, dono ek doosre se compare ho jaate hain
 
-// ---- enum class (scoped) -- PREFER ----
-enum class Side : std::uint8_t {            // underlying type explicit (1 byte)
+// ---- enum class (scoped) -- YAHI USE KARO ----
+enum class Side : std::uint8_t {            // underlying type khud bataya (1 byte)
     Buy  = 1,
     Sell = 2,
 };
 
-enum class OrderType {                      // values auto: Market=0, Limit=1, ...
+enum class OrderType {                      // values apne aap: Market=0, Limit=1, ...
     Market, Limit, Stop, StopLimit,
 };
 
-// enum class -> string (compile-time-ish; switch with NO default -> -Wswitch catches missing)
+// enum class -> string (switch mein default NAHI -> case chhoota to -Wswitch pakdega)
 std::string_view toString(OrderType t) {
     switch (t) {
         case OrderType::Market:    return "Market";
@@ -40,23 +40,24 @@ int main() {
     // ============================================================
     std::cout << "===== 1. plain enum =====\n";
     Color c = Green;
-    int ci = c;                              // ⚠️ implicit -> int  (kabhi useful, kabhi bug)
+    int ci = c;                              // ⚠️ chupchaap -> int  (kabhi kaam ka, kabhi bug)
     std::cout << "  Green as int = " << ci << "\n";
     std::cout << "  ⚠️ Red aur Active dono 0 -- `Red == Active` compiles (-Wenum-compare)\n"
                  "     aur logic bug ban sakta hai. Scope nahi hai unscoped enum mein.\n";
-    // enum Color x = 5;                      // ⚠️ some compilers allow -- invalid value
+    // enum Color x = 5;                      // ❌ C++ mein ERROR: invalid conversion from 'int' to 'Color'
+    //                                        //    (ulti disha -- int -> enum -- chupchaap nahi hoti; sirf -fpermissive se warning)
 
     // ============================================================
     //  2. enum class -- scoped, no implicit conversion
     // ============================================================
     std::cout << "\n===== 2. enum class =====\n";
     Side s = Side::Buy;
-    // int si = s;                            // ❌ ERROR -- no implicit conversion (GOOD)
-    int si = static_cast<int>(s);             // explicit only
+    // int si = s;                            // ❌ ERROR -- chupchaap conversion nahi (ACHHA hai)
+    int si = static_cast<int>(s);             // sirf khul ke cast
     std::cout << "  Side::Buy = " << si << "  (underlying uint8_t)\n";
     std::cout << "  sizeof(Side) = " << sizeof(Side) << " byte (: uint8_t se)\n";
 
-    // s == 1;                                // ❌ ERROR -- can't compare to raw int
+    // s == 1;                                // ❌ ERROR -- raw int se compare nahi kar sakte
     if (s == Side::Buy) std::cout << "  s == Side::Buy  ✅ (type-safe compare)\n";
 
     // ============================================================

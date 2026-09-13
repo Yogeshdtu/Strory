@@ -11,7 +11,7 @@ memory layout aur access.
 
 ---
 
-## Struct inside struct
+## Struct ke andar struct
 
 ```cpp
 struct Timestamp { std::int32_t sec; std::int32_t nsec; };
@@ -19,13 +19,13 @@ struct Price     { std::int64_t raw; };   // fixed-point
 
 struct Order {
     std::uint64_t id;
-    Price         price;         // <- a struct member
-    Timestamp     created;       // <- another struct member
+    Price         price;         // <- ek struct member
+    Timestamp     created;       // <- ek aur struct member
     std::int64_t  qty;
 };
 ```
 
-### Access — chained dot
+### Access — dot ki chain
 
 ```cpp
 Order o{};
@@ -34,7 +34,7 @@ o.created.sec = 1700000000;
 std::int64_t p = o.price.raw;
 ```
 
-### Init — nested braces
+### Init — braces ke andar braces
 
 ```cpp
 Order o{ 1001, {1923400}, {1700000000, 500}, 100 };
@@ -43,10 +43,9 @@ Order p{ .id = 1001, .price = {1923400}, .created = {1700000000, 500}, .qty = 10
 
 ---
 
-## Memory layout — flattened, contiguous
+## Memory layout — sab ek line mein, contiguous
 
-Nested structs are **not** pointers — the sub-struct's bytes are laid out
-**inline**, right there in the parent:
+Nested structs **pointer nahi** hote — andar wale struct ke bytes parent ke **andar hi** rakhe jaate hain:
 
 ```
    Order (contiguous):
@@ -57,12 +56,16 @@ Nested structs are **not** pointers — the sub-struct's bytes are laid out
    offset 0    8             16                 24
 ```
 
-`sizeof(Order)` = sum of member sizes + padding, where a nested struct
-contributes its own `sizeof` (with its own internal padding) and its own
-`alignof`. No indirection — `o.price.raw` is `load [&o + 8]`.
+(GCC 16.2 pe check kiya: `sizeof(Order)` = 32, `offsetof(Order, created)` = 16.)
 
-⚠️ A nested struct's `alignof` propagates: if `Timestamp` has `alignof 4`, it
-must start on a 4-byte boundary inside `Order` → possible padding before it (file 05).
+Analogy: nested struct ek dabbe ke andar rakha chhota dabba hai — alag almari mein rakhi cheez ki
+parchi (pointer) nahi. Bada dabba uthao, andar wala saath aata hai.
+
+`sizeof(Order)` = members ke size ka jod + padding, jahan nested struct apna `sizeof` (apni andar ki
+padding samet) aur apna `alignof` laata hai. Koi indirection nahi — `o.price.raw` matlab `load [&o + 8]`.
+
+⚠️ Nested struct ka `alignof` upar tak jaata hai: agar `Timestamp` ka `alignof` 4 hai, to use `Order`
+ke andar 4-byte boundary pe hi shuru hona padega → uske pehle padding aa sakti hai (file 05).
 
 ---
 
@@ -71,7 +74,7 @@ must start on a 4-byte boundary inside `Order` → possible padding before it (f
 ```cpp
 struct Level { std::int64_t price; std::int64_t qty; };   // 16 bytes
 
-Level book[10];                          // 160 contiguous bytes
+Level book[10];                          // 160 bytes ek saath
 std::array<Level, 10> book2{};
 std::vector<Level> book3(10);
 
@@ -79,18 +82,18 @@ book[3].price = 100;
 for (const Level& l : book2) total += l.qty;
 ```
 
-`book[i]` → `&book[0] + i * sizeof(Level)` — one scaled load to the struct, then
-member offset. Contiguous → cache-friendly for **whole-struct** access. For
-**one-field** scans over many structs → SoA often wins (file 07).
+`book[i]` → `&book[0] + i * sizeof(Level)` — struct tak ek scaled load, phir member ka offset.
+Contiguous hai → **poore struct** ke access ke liye cache-friendly. Bahut saare structs ke **ek hi field**
+ke scan ke liye → aksar SoA jeetta hai (file 07).
 
-### Struct containing an array
+### Struct jiske andar array ho
 
 ```cpp
 struct OrderBook {
     std::array<Level, 32> bids;
     std::array<Level, 32> asks;
     std::uint32_t bidCount, askCount;
-};   // one big contiguous block -- no heap, cache-resident
+};   // ek bada contiguous block -- heap nahi, cache mein rehta hai (sizeof 1032, GCC 16.2)
 ```
 
 ---
@@ -99,22 +102,26 @@ struct OrderBook {
 
 ```cpp
 OrderBook ob{
-    .bids = {{ {100, 500}, {99, 300} }},   // array-of-struct init needs the extra braces
+    .bids = {{ {100, 500}, {99, 300} }},   // array-of-struct init ko extra braces chahiye
     .bidCount = 2,
 };
 ```
 
-(The `{{ ... }}` — outer for `std::array`, inner for the element list.)
+(`{{ ... }}` — bahar wala `std::array` ke liye, andar wala element list ke liye.)
+
+⚠️ GCC 16.2 pe yeh chalta hai, par `-Wextra` chhode gaye members (`asks`, `askCount`) ke liye
+`-Wmissing-field-initializers` warning deta hai. Woh members value-init hi hote hain (zero) — warning bas
+yaad dilati hai. Chup karana ho to unhe bhi likh do (`.asks = {}`).
 
 ---
 
-## Deep nesting — keep it shallow
+## Gehri nesting — uthli rakho
 
 ```cpp
-config.network.tcp.socket.options.keepalive.interval   // ⚠️ hard to read/pass
+config.network.tcp.socket.options.keepalive.interval   // ⚠️ padhna/pass karna mushkil
 ```
 
-2–3 levels is fine. Deeper → flatten, or pass sub-structs by reference:
+2–3 level theek hain. Usse gehra → flatten karo, ya andar ke struct ko reference se pass karo:
 
 ```cpp
 void tune(SocketOptions& opts);
@@ -125,28 +132,26 @@ tune(config.network.tcp.socket.options);
 
 ## Andar kya hota hai
 
-- Nested struct members are laid out inline in declaration order, each aligned to
-  its own `alignof`, with padding as needed. The parent's `alignof` is the max of
-  all members' (including nested structs').
-- `o.a.b.c` → a single `load` at a compile-time constant offset (`offset_of_a +
-  offset_of_b + offset_of_c`). No pointer chasing.
-- An array-of-structs is one contiguous block; `arr[i].field` is `base + i*stride
-  + field_offset`.
-- No vtable / no header for plain nested structs — layout is exactly the members.
+- Nested struct ke members declaration order mein inline rakhe jaate hain, har ek apne `alignof` pe,
+  zaroorat ho to padding ke saath. Parent ka `alignof` = saare members (nested structs samet) mein
+  sabse bada.
+- `o.a.b.c` → ek hi `load`, compile-time constant offset pe (`offset_of_a + offset_of_b + offset_of_c`).
+  Koi pointer chasing nahi.
+- Array-of-structs ek hi contiguous block hai; `arr[i].field` = `base + i*stride + field_offset`.
+- Plain nested structs mein na vtable, na header — layout bilkul members jitna.
 
-> **HFT relevance:** Order books, market-data snapshots, and risk aggregates are
-> nested plain structs / arrays-of-structs in one contiguous, heap-free block —
-> `std::array<Level, Depth>` inside a `Book` struct, the whole thing cache-
-> resident and `memcpy`-able. Chained `.` access is free (constant offsets). The
-> one decision is AoS vs SoA for the hot scan (file 07). Deep config trees live
-> in cold startup code where readability wins.
+> **HFT relevance:** Order books, market-data snapshots, aur risk aggregates nested plain structs /
+> arrays-of-structs hote hain, ek contiguous, heap-free block mein — `Book` struct ke andar
+> `std::array<Level, Depth>`, poori cheez cache mein aur `memcpy` ho sakne layak. Dot ki chain free hai
+> (constant offsets). Asli faisla bas ek hai: hot scan ke liye AoS vs SoA (file 07). Gehre config trees
+> thande startup code mein rehte hain, jahan padhne mein aasaani jeetti hai.
 
 ---
 
 ## Hands-on
 
-`examples/01_struct_basics.cpp` (`vector<Point>`), and build a small nested
-`OrderBook` with `std::array<Level, N>` members; print `sizeof` and offsets.
+`examples/01_struct_basics.cpp` (`vector<Point>`), aur ek chhota nested `OrderBook` banao jisme
+`std::array<Level, N>` members hon; `sizeof` aur offsets print karo.
 
 ```bash
 ./build.ps1 11-STRUCTS/examples/01_struct_basics.cpp
@@ -156,30 +161,33 @@ tune(config.network.tcp.socket.options);
 
 ## ⚠️ Traps
 
-### Trap 1 — thinking a nested struct is a pointer
+### Trap 1 — nested struct ko pointer samajhna
 ```cpp
-o.price.raw = 5;    // direct -- no allocation, no indirection. (It's inline.)
+o.price.raw = 5;    // seedha -- na allocation, na indirection. (Inline hai.)
 ```
 
-### Trap 2 — nested struct alignment causing surprise padding
+### Trap 2 — nested struct ki alignment se achanak padding
 ```cpp
 struct Inner { double d; };            // align 8
-struct Outer { char c; Inner in; };    // 7 bytes padding before `in` -> sizeof 16
+struct Outer { char c; Inner in; };    // `in` se pehle 7 bytes padding -> sizeof 16
 ```
 
-### Trap 3 — array-of-struct init needs nested braces
+### Trap 3 — array-of-struct init ko extra braces chahiye
 ```cpp
-std::array<Level, 2> a{ {100,500}, {99,300} };     // ⚠️ may need { { {100,500}, {99,300} } }
+std::array<Level, 2> a{ {100,500}, {99,300} };       // ❌ GCC 16.2: too many initializers for 'std::array<Level, 2>'
+std::array<Level, 2> a{ { {100,500}, {99,300} } };   // ✅
+```
+Kyun: `std::array` andar ek C array wala struct hai. Pehla `{100,500}` poore andar ke array ko bhar
+deta hai, aur doosre `{99,300}` ke liye koi member bachta hi nahi.
+
+### Trap 4 — 2D book ke liye `vector<vector<Level>>`
+```cpp
+std::vector<std::vector<Level>> book;   // ⚠️ bikhra hua. std::array<Level,N> ya flat vector lo
 ```
 
-### Trap 4 — `vector<vector<Level>>` for a 2D book
+### Trap 5 — gehri chains idhar-udhar pass karna
 ```cpp
-std::vector<std::vector<Level>> book;   // ⚠️ scattered. std::array<Level,N> or flat vector
-```
-
-### Trap 5 — deep chains passed around
-```cpp
-process(cfg.a.b.c.d.e);   // ⚠️ fragile. Pass cfg.a.b.c.d.e's type by ref, or flatten
+process(cfg.a.b.c.d.e);   // ⚠️ nazuk. cfg.a.b.c.d.e ke type ko ref se lo, ya flatten karo
 ```
 
 ---
@@ -188,34 +196,38 @@ process(cfg.a.b.c.d.e);   // ⚠️ fragile. Pass cfg.a.b.c.d.e's type by ref, o
 
 | ❌ Galat | ✅ Sahi |
 |---|---|
-| "Nested struct member is a pointer" | Inline bytes — no indirection |
-| "`o.a.b.c` chases pointers" | Single load at a constant offset |
-| "`sizeof(Outer)` = `sizeof` members" | + padding from nested `alignof` too |
-| "Array-of-structs is like `T**`" | One contiguous block |
-| "Deep nesting is free" | Free for the CPU; costly for readers |
+| "Nested struct member ek pointer hai" | Inline bytes — koi indirection nahi |
+| "`o.a.b.c` pointers chase karta hai" | Constant offset pe ek load |
+| "`sizeof(Outer)` = members ke `sizeof` ka jod" | + nested `alignof` ki padding bhi |
+| "Array-of-structs `T**` jaisa hai" | Ek contiguous block |
+| "Gehri nesting free hai" | CPU ke liye free; padhne wale ke liye mehngi |
+| "`std::array<Level,2>{ {..}, {..} }` chal jaayega" | Error — teen level braces chahiye |
 
 ---
 
 ## Exercises
 
-1. **Nested layout:** `struct A { int x; };  struct B { A a; double d; };` —
-   `sizeof(B)`? `offsetof(B, d)`? Why?
+1. **Nested layout:** `struct A { int x; };  struct B { A a; double d; };` — `sizeof(B)`?
+   `offsetof(B, d)`? Kyun?
+   <details><summary>Answer</summary>
 
-2. **Chained access:** build `struct Engine { int hp; };  struct Car { Engine e;
-   std::string model; };` — set and read `car.e.hp`.
+   `sizeof(B)` = 16, `offsetof(B, d)` = 8 (GCC 16.2 pe chala ke). `A` 4 bytes ka hai; `double` ko
+   8-byte boundary chahiye, isliye `a` ke baad 4 bytes padding, phir `d`.
+   </details>
 
-3. **AoS:** `std::array<Level, 5>` order book side; fill; find best (max price)
-   bid; total qty.
+2. **Chained access:** `struct Engine { int hp; };  struct Car { Engine e; std::string model; };` banao —
+   `car.e.hp` set karo aur padho.
 
-4. **Struct with array member:** `struct Histogram { std::array<int, 256>
-   buckets; long total; };` — `add(Histogram&, int byte)`, `mode(const
-   Histogram&)`.
+3. **AoS:** `std::array<Level, 5>` order book ki ek side; bharo; best (max price) bid dhoondho; kul qty.
 
-5. **Alignment padding:** `struct P1 { char c; struct { double d; } inner; };` —
-   `sizeof`? Move `c` after `inner` — `sizeof` now?
+4. **Array member wala struct:** `struct Histogram { std::array<int, 256> buckets; long total; };` —
+   `add(Histogram&, int byte)`, `mode(const Histogram&)`.
 
-6. **Flatten:** a 4-deep config chain — rewrite so hot code takes the leaf
-   sub-struct by reference.
+5. **Alignment padding:** `struct P1 { char c; struct { double d; } inner; };` — `sizeof`? `c` ko `inner`
+   ke baad le jao — ab `sizeof`?
+
+6. **Flatten:** 4 level gehri config chain — aisa rewrite karo ki hot code sirf aakhri sub-struct ko
+   reference se le.
 
 ---
 

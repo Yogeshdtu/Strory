@@ -18,61 +18,67 @@ hai.
 ```cpp
 alignof(char)        // 1  -- kisi bhi address pe
 alignof(std::int16_t)// 2  -- even address
-alignof(std::int32_t)// 4  -- multiple of 4
+alignof(std::int32_t)// 4  -- 4 ka multiple
 alignof(std::int64_t)// 8
 alignof(double)      // 8
 alignof(void*)       // 8
 ```
 
-**Rule: a `T` object must live at an address that's a multiple of `alignof(T)`.**
-Misaligned access on x86 is slow (or a fault on ARM / for SIMD). The compiler
-guarantees alignment by inserting padding.
+**Rule: `T` ka object aise address pe hona chahiye jo `alignof(T)` ka multiple ho.**
+
+Analogy: parking lot mein car sirf un khaano mein khadi ho sakti hai jo har 8 metre pe bane hain.
+Scooter (char) kahin bhi khada ho sakta hai. Agar scooter ke baad car khadi karni hai, to beech ki
+khaali jagah chhodni padti hai — wahi padding hai.
+
+Galat alignment pe kya hota hai: C++ ke hisaab se misaligned object access **UB** hai. Practically, x86
+pe scalar `int`/`double` ka misaligned load aam taur pe chal jaata hai; par **aligned SIMD instructions**
+(`movaps` jaise) crash karti hain, kuch purane ARM cores fault dete hain, aur compiler "alignment sahi
+hai" maan ke optimize karta hai. Isliye compiler padding daal ke alignment ki guarantee deta hai.
 
 ---
 
-## Padding — the compiler fills gaps
+## Padding — compiler khaali jagah bharta hai
 
 ```cpp
 struct Bad {
     char         a;    // offset 0        (1 byte)
-    // >>> 7 bytes PADDING  (so `b` starts at a multiple of 8)
+    // >>> 7 bytes PADDING  (taaki `b` 8 ke multiple pe shuru ho)
     double       b;    // offset 8        (8 bytes)
     char         c;    // offset 16       (1 byte)
-    // >>> 3 bytes PADDING  (so `d` starts at a multiple of 4)
+    // >>> 3 bytes PADDING  (taaki `d` 4 ke multiple pe shuru ho)
     std::int32_t d;    // offset 20       (4 bytes)
-    // total 24 bytes  (16 useful, 8 padding)
+    // kul 24 bytes  (14 kaam ke, 10 padding)
 };
 ```
 
-Two rules:
-1. **Each member** starts at an offset that's a multiple of its `alignof`.
-   → padding *before* an under-aligned member.
-2. **The struct's size** is a multiple of the struct's `alignof` (= max member
-   alignment). → *tail* padding.
+Do niyam:
+1. **Har member** aise offset pe shuru hota hai jo uske `alignof` ka multiple ho.
+   → kam-aligned member ke *pehle* padding.
+2. **Struct ka size** struct ke `alignof` (= sabse bade member ki alignment) ka multiple hota hai.
+   → *peeche* (tail) padding.
 
-`sizeof(Bad)` = **24**, not 13. `alignof(Bad)` = 8 (its biggest member).
+`sizeof(Bad)` = **24**, 13 nahi. `alignof(Bad)` = 8 (sabse bada member).
 
-`examples/02_padding_demo.cpp` prints these offsets.
+`examples/02_padding_demo.cpp` yeh offsets print karta hai.
 
 ---
 
-## Member reordering — same data, smaller struct
+## Member reordering — wahi data, chhota struct
 
 ```cpp
-struct Good {               // Bad ke SAME members, DESCENDING alignment order
+struct Good {               // Bad ke WAHI members, alignment ke UTARTE order mein
     double       b;    // offset 0
     std::int32_t d;    // offset 8
     char         a;    // offset 12
     char         c;    // offset 13
-    // >>> 2 bytes tail padding (size -> multiple of 8)
-    // total 16 bytes
+    // >>> 2 bytes tail padding (size 8 ka multiple ho jaaye)
+    // kul 16 bytes
 };
 ```
 
-`sizeof(Good)` = **16** vs `sizeof(Bad)` = 24 — **8 bytes (33%) saved**, zero
-behaviour change.
+`sizeof(Good)` = **16** vs `sizeof(Bad)` = 24 — **8 bytes (33%) bache**, behaviour mein zero farq.
 
-### Rule of thumb: **members in descending alignment order**
+### Aasaan rule: **members alignment ke utarte (descending) order mein**
 
 ```
 pointers / double / int64_t   (align 8)
@@ -84,86 +90,99 @@ int16_t / short               (align 2)
 char / bool / int8_t          (align 1)
 ```
 
-`examples/03_struct_optimization.cpp` — a realistic `Level` struct: **bad order
-40 bytes (45% padding), good order 24 bytes (8%)**. That's 1.67x denser → 1.67x
-fewer cache lines to scan a book.
+`examples/03_struct_optimization.cpp` — ek asli jaisa `Level` struct: **bura order 40 bytes (45%
+padding), achha order 24 bytes (8%)** (GCC 16.2 pe dobara chalaya — wahi numbers). Yaani 1.67x ghana → book
+scan karne ke liye 1.67x kam cache lines.
 
 ---
 
 ## `alignof` / `alignas`
 
 ```cpp
-alignof(T)                          // query: alignment requirement of T
+alignof(T)                          // pucho: T ki alignment requirement
 
-struct alignas(64) CacheLineAligned {   // force 64-byte alignment (a whole cache line)
+struct alignas(64) CacheLineAligned {   // 64-byte alignment zabardasti (poori cache line)
     std::atomic<long> counter;
-    char pad[64 - sizeof(std::atomic<long>)];   // (or let the compiler tail-pad)
+    char pad[64 - sizeof(std::atomic<long>)];   // (ya compiler ko tail-pad karne do)
 };
 
-alignas(32) float simdRow[8];       // 32-byte aligned for AVX loads
+alignas(32) float simdRow[8];       // AVX loads ke liye 32-byte aligned
 ```
 
-**Over-align** (`alignas(64)`) to:
-- Put a hot struct on its own cache line → avoid **false sharing** (two threads
-  writing different fields in the same line → cache-line ping-pong, folder 28).
-- Enable aligned SIMD loads.
+**Zyada align** (`alignas(64)`) karo taaki:
+- Garam struct apni alag cache line pe rahe → **false sharing** se bachav (do threads ek hi line ke alag
+  fields likhein → cache line idhar-udhar uchhalti hai, folder 28).
+- Aligned SIMD loads use ho sakein.
 
-**Under-align** — you can't below the natural requirement (that's what `#pragma
-pack` does, file 06, with trade-offs).
+**Kam align** — natural requirement se neeche nahi ja sakte (woh kaam `#pragma pack` karta hai, file 06,
+trade-offs ke saath). ⚠️ Aur dhyaan: `struct alignas(1) S { double d; };` standard ke hisaab se
+ill-formed hai, par **GCC 16.2 koi error ya warning nahi deta — chupchaap ignore karta hai**
+(`alignof(S)` 8 hi raha, chala ke dekha). Compiler ki khamoshi ko "chal gaya" mat samjho.
 
 ---
 
-## Finding padding
+## Padding dhoondhna
 
 ```cpp
-// 1. static_assert -- lock the size
+// 1. static_assert -- size lock karo
 static_assert(sizeof(Level) == 24, "Level layout changed!");
 
-// 2. -Wpadded -- compiler tells you where it padded
-//    g++ -Wpadded file.cpp   ->  "warning: padding struct 'Level' with 4 bytes to align 'qty'"
-
-// 3. offsetof -- inspect each member's byte offset
+// 2. offsetof -- har member ka byte offset dekho
 std::cout << offsetof(Level, qty);
 
-// 4. `pahole` (Linux, from dwarves) -- prints the full layout with holes
+// 3. -Wpadded -- compiler padding ki warning deta hai (neeche MinGW wala dhyaan!)
+//    g++ -Wpadded file.cpp
+
+// 4. `pahole` (Linux, dwarves package) -- poora layout holes ke saath print karta hai
 //    pahole -C Level ./binary
 ```
 
-⚠️ `-Wpadded` is noisy (warns on *every* struct with any padding) — use it as a
-one-off audit, not a permanent flag.
+### ⚠️ Is toolchain pe `-Wpadded` beech ki padding NAHI dikhata — chala ke pakda
+Upar wala `Bad` struct, GCC 16.2 (MinGW), `-Wpadded`:
+
+| Flags | Kya warning aayi |
+|---|---|
+| `-Wpadded` (default) | sirf tail padding: `padding struct size to alignment boundary with N bytes` — `a` ke baad ke 7 bytes aur `c` ke baad ke 3 bytes pe **kuch nahi** |
+| `-Wpadded -mno-ms-bitfields` | `padding struct to align 'Bad::b'`, `padding struct to align 'Bad::d'` — beech ki padding bhi |
+
+Wajah: MinGW GCC Microsoft-compatible struct layout ke liye default mein `-mms-bitfields` on rakhta hai,
+aur us mode mein `-Wpadded` beech ki padding report nahi karta. Linux GCC pe yeh flag default nahi hai.
+
+Practical rule: **is machine pe layout audit ke liye `offsetof` + `static_assert` pe bharosa karo**; ek
+baar ki `-Wpadded` jaanch karni ho to `-mno-ms-bitfields` ke saath sirf audit ke liye chalao — us flag se
+production build mat banao (woh bitfield layout / ABI badal deta hai).
+
+⚠️ `-Wpadded` shor bhi bahut karta hai (thodi si padding wale har struct pe warn) — permanent flag
+nahi, ek baar ki audit ke liye.
 
 ---
 
-## When you CAN'T reorder
+## Jab order badal hi NAHI sakte
 
-Wire formats / ABI / API structs have a **fixed** member order (the protocol
-dictates it). Then:
-- **Explicit padding fields**: `char _reserved[3];` — document the gap.
-- `#pragma pack` to remove padding entirely (file 06) — with the unaligned-access
-  trade-off.
-- A separate "layout struct" for the wire + a nicely-ordered struct for internal
-  use, converting between them.
+Wire formats / ABI / API structs ka member order **fixed** hota hai (protocol tay karta hai). Tab:
+- **Explicit padding fields**: `char _reserved[3];` — khaali jagah ko likh ke batao.
+- `#pragma pack` se padding poori hatao (file 06) — unaligned access ke trade-off ke saath.
+- Wire ke liye ek alag "layout struct" + andar use ke liye achhe order wala struct, aur dono ke beech convert.
 
 ---
 
 ## Andar kya hota hai
 
-- The compiler computes each member's offset: `offset = round_up(previous_end,
-  alignof(member))`. Any gap is padding (bytes are indeterminate — often 0, don't
-  rely on it).
-- Struct `sizeof` = `round_up(last_member_end, alignof(struct))`.
-- Nested struct → contributes its `sizeof` and its `alignof`.
-- Array of struct → `stride = sizeof(struct)` (which already includes tail
-  padding, so `arr[i]` stays aligned).
-- Reading a padded struct's raw bytes shows the gaps; `memcmp` of two "equal"
-  structs can differ in the padding → **don't `memcmp` structs for equality**.
+- Compiler har member ka offset nikaalta hai: `offset = round_up(pichhle_member_ka_end, alignof(member))`.
+  Beech ka gap padding hai (uske bytes indeterminate — aksar 0, bharosa mat karo).
+- Struct ka `sizeof` = `round_up(aakhri_member_ka_end, alignof(struct))`.
+- Nested struct → apna `sizeof` aur apna `alignof` laata hai.
+- Struct ka array → `stride = sizeof(struct)` (jisme tail padding pehle se hai, isliye `arr[i]` aligned
+  rehta hai).
+- Padded struct ke raw bytes padho to gaps dikhte hain; do "barabar" structs ka `memcmp` padding mein alag
+  aa sakta hai → **struct equality ke liye `memcmp` mat karo**.
 
-> **HFT relevance:** Struct size directly controls how many records fit in a
-> 64-byte cache line and in L1/L2. Reordering `Level` from 40 → 24 bytes means a
-> 32-level book side goes from 1280 → 768 bytes — the difference between spilling
-> L1 and not. HFT code reviews check struct layout; `static_assert(sizeof(...))`
-> guards it in CI; hot shared structs are `alignas(64)` to kill false sharing.
-> `-Wpadded` / `pahole` are standard audit tools. Folders 28, 32, 39.
+> **HFT relevance:** Struct ka size seedha tay karta hai ki 64-byte cache line aur L1/L2 mein kitne records
+> aayenge. `Level` ko 40 → 24 bytes karne se 32-level book side 1280 → 768 bytes ki ho jaati hai — L1 se bahar
+> bikharna ya na bikharna. HFT code review struct layout check karta hai; CI mein
+> `static_assert(sizeof(...))` use bachata hai; garam shared structs `alignas(64)` hote hain false sharing
+> maarne ke liye. Aur jis toolchain pe audit kar rahe ho, uske tools ki seema jaano — MinGW pe `-Wpadded`
+> beech ki padding miss karta hai. Folders 28, 32, 39.
 
 ---
 
@@ -172,36 +191,44 @@ dictates it). Then:
 ```bash
 ./build.ps1 11-STRUCTS/examples/02_padding_demo.cpp
 ./build.ps1 11-STRUCTS/examples/03_struct_optimization.cpp
-g++ -std=c++20 -Wpadded 11-STRUCTS/examples/02_padding_demo.cpp -o /dev/null   # see the warnings
+# -Wpadded audit -- MinGW pe beech ki padding dekhne ke liye -mno-ms-bitfields bhi (sirf audit):
+g++ -std=c++20 -Wpadded -mno-ms-bitfields 11-STRUCTS/examples/02_padding_demo.cpp -o /dev/null
 ```
 
 ---
 
 ## ⚠️ Traps
 
-### Trap 1 — `sizeof(struct)` == sum of members
+### Trap 1 — `sizeof(struct)` == members ka jod
 ```cpp
-struct M { char c; int i; };  // sizeof 8, not 5
+struct M { char c; int i; };  // sizeof 8, 5 nahi
 ```
 
-### Trap 2 — `memcmp` for struct equality
+### Trap 2 — struct equality ke liye `memcmp`
 ```cpp
-if (std::memcmp(&a, &b, sizeof(a)) == 0) { }   // ⚠️ padding bytes may differ. Member-wise ==
+if (std::memcmp(&a, &b, sizeof(a)) == 0) { }   // ⚠️ padding bytes alag ho sakte hain. Member-wise ==
 ```
 
-### Trap 3 — mixed-alignment member order
+### Trap 3 — mile-jule alignment wala member order
 ```cpp
 struct S { char a; double b; char c; int d; };   // ⚠️ 24 bytes. Reorder -> 16
 ```
 
-### Trap 4 — `alignas` smaller than natural
+### Trap 4 — natural se chhota `alignas`
 ```cpp
-struct alignas(1) S { double d; };   // ❌ error -- can't under-align (use #pragma pack)
+struct alignas(1) S { double d; };   // ⚠️ standard: ill-formed. GCC 16.2: chupchaap ignore, alignof 8 hi
+```
+Padding hatani hai to `#pragma pack` (file 06) — `alignas` kabhi alignment ghata nahi sakta.
+
+### Trap 5 — padding bytes ki value pe bharosa
+```cpp
+struct S { char c; int i; };  S s{};  // `c` ke baad ki padding indeterminate, 0 ki guarantee nahi
 ```
 
-### Trap 5 — relying on padding byte values
-```cpp
-struct S { char c; int i; };  S s{};  // padding after `c` is indeterminate, not guaranteed 0
+### Trap 6 — MinGW pe `-Wpadded` ko poori audit samajhna
+```bash
+g++ -Wpadded file.cpp                     # ⚠️ sirf tail padding
+g++ -Wpadded -mno-ms-bitfields file.cpp   # beech ki padding bhi (sirf audit ke liye)
 ```
 
 ---
@@ -210,36 +237,56 @@ struct S { char c; int i; };  S s{};  // padding after `c` is indeterminate, not
 
 | ❌ Galat | ✅ Sahi |
 |---|---|
-| "`sizeof` = sum of member sizes" | + padding (alignment) |
-| "Member order doesn't affect size" | Descending order minimizes padding — often 30–45% smaller |
-| "`memcmp` compares structs correctly" | Padding bytes differ — member-wise `==` |
-| "Padding bytes are zero" | Indeterminate |
-| "`alignas` can shrink alignment" | Only increase — `#pragma pack` to remove padding |
+| "`sizeof` = members ke size ka jod" | + padding (alignment) |
+| "Member order se size pe fark nahi" | Descending order padding kam karta hai — aksar 30–45% chhota |
+| "`memcmp` structs ko sahi compare karta hai" | Padding bytes alag — member-wise `==` |
+| "Padding bytes zero hote hain" | Indeterminate |
+| "`alignas` alignment ghata sakta hai" | Sirf badha sakta hai; GCC chhote `alignas` ko chupchaap ignore karta hai |
+| "`-Wpadded` har padding dikhata hai" | MinGW (`-mms-bitfields` default) pe sirf tail padding |
+| "x86 pe misaligned access bas thoda slow hai" | C++ mein UB; aligned SIMD crash; scalar aksar chal jaata hai — bharosa mat karo |
 
 ---
 
 ## Exercises
 
-1. **Compute by hand:** `struct S { char a; int b; char c; double d; short e; };`
-   — write each offset, the padding, and `sizeof`. Verify with `offsetof` +
-   `sizeof`.
+1. **Haath se nikaalo:** `struct S { char a; int b; char c; double d; short e; };` — har offset, padding,
+   aur `sizeof` likho. `offsetof` + `sizeof` se verify karo.
+   <details><summary>Answer</summary>
 
-2. **Reorder:** minimize `sizeof(S)` from exercise 1 by reordering. How many bytes
-   saved?
+   `a`=0, (3 padding), `b`=4, `c`=8, (7 padding), `d`=16, `e`=24, (6 tail padding) → `sizeof` = **32**
+   (GCC 16.2 pe chala ke: offsets 0, 4, 8, 16, 24).
+   </details>
 
-3. **`-Wpadded`:** compile `02_padding_demo.cpp` with `-Wpadded`. Match each
-   warning to an offset in the output.
+2. **Reorder:** exercise 1 ke `S` ka `sizeof` reorder karke kam se kam karo. Kitne bytes bache?
+   <details><summary>Answer</summary>
 
-4. **`static_assert` guard:** `struct Level { std::int64_t px, qty; std::int32_t
-   n; char side; };` — `static_assert(sizeof(Level) == 24)`. Now add a `bool`
-   after `side` — still 24? Add a `double` — assert fires?
+   `double d; int b; short e; char a; char c;` → 8 + 4 + 2 + 1 + 1 = 16, koi padding nahi → **16 bytes**,
+   yaani 32 se 16 bytes bache.
+   </details>
 
-5. **`alignas` / false sharing:** two `std::atomic<long>` counters in a struct vs
-   each in its own `alignas(64)` struct. Two threads increment one each, 10M
-   times. `-O2`, time. (Folder 28 preview.)
+3. **`-Wpadded`:** `02_padding_demo.cpp` ko pehle `-Wpadded`, phir `-Wpadded -mno-ms-bitfields` se compile
+   karo. Har warning ko output ke ek offset se milao. Pehle wale mein kya chhoot gaya?
+   <details><summary>Answer (GCC 16.2, MinGW)</summary>
 
-6. **Nested alignment:** `struct Inner { double d; };  struct Outer { char c;
-   Inner in; char c2; };` — `sizeof(Outer)`? Reorder to minimize.
+   Sirf `-Wpadded`: **1** warning — `padding struct size to alignment boundary with 2 bytes` (`Good` ki tail).
+   `-mno-ms-bitfields` ke saath: **3** — `padding struct to align 'Bad::b'` (offset 1–7), `'Bad::d'`
+   (offset 17–19), aur wahi tail wala. Pehle run mein `Bad` ki dono beech wali gaps chhoot gayi thi.
+   </details>
+
+4. **`static_assert` guard:** `struct Level { std::int64_t px, qty; std::int32_t n; char side; };` —
+   `static_assert(sizeof(Level) == 24)`. Ab `side` ke baad ek `bool` jodo — ab bhi 24? Ek `double` jodo —
+   assert fire hua?
+   <details><summary>Answer</summary>
+
+   Base 24; `bool` jodne pe bhi **24** (tail padding mein aa gaya); `double` jodne pe **32** → assert fire.
+   (GCC 16.2 pe chala ke.)
+   </details>
+
+5. **`alignas` / false sharing:** ek struct mein do `std::atomic<long>` counters vs har ek apne
+   `alignas(64)` struct mein. Do threads ek-ek counter 10M baar badhayein. `-O2`, time lo. (Folder 28 ki jhalak.)
+
+6. **Nested alignment:** `struct Inner { double d; };  struct Outer { char c; Inner in; char c2; };` —
+   `sizeof(Outer)`? Minimize karne ke liye reorder karo.
 
 ---
 
@@ -251,7 +298,7 @@ struct S { char c; int i; };  S s{};  // padding after `c` is indeterminate, not
 4. `alignas(64)` struct pe — 2 reasons (false sharing, SIMD)?
 5. Struct equality ke liye `memcmp` kyun galat?
 6. Wire-format struct jismein order fix ho — padding kaise handle karo?
-7. `-Wpadded` / `pahole` — kya batate hain?
+7. `-Wpadded` / `pahole` — kya batate hain? Kis toolchain pe kya miss hota hai?
 
 ---
 

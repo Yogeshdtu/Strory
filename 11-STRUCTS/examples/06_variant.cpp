@@ -28,11 +28,13 @@ struct EventPrinter {
     void operator()(const Reject& r) const { std::cout << "  Reject (" << r.reason << ")\n"; }
 };
 
-// double buy notional across a stream
+// stream ke SAARE trades ka notional (price * qty) jodo.
+// (Naam "buy" hai par Trade mein side field nahi -- demo mein har trade gina jaata hai.)
 double buyNotional(const std::vector<Event>& events) {
     double total = 0.0;
     for (const Event& e : events) {
-        // overload set inline (C++ "overloaded" idiom -- yahan explicit)
+        // sirf ek alternative chahiye -> std::visit ki jagah get_if kaafi:
+        // Trade hai to pointer, warna nullptr (throw nahi)
         if (const Trade* t = std::get_if<Trade>(&e))
             total += t->price * static_cast<double>(t->qty);
     }
@@ -48,7 +50,7 @@ int main() {
     std::cout << "  e.index() = " << e.index()
               << "  holds Quote? " << std::boolalpha << std::holds_alternative<Quote>(e) << "\n";
 
-    e = Trade{192.32, 100};                 // reassign to a different alternative
+    e = Trade{192.32, 100};                 // doosra alternative assign -- purana Quote destroy
     std::cout << "  after reassign: index = " << e.index()
               << "  holds Trade? " << std::holds_alternative<Trade>(e) << "\n";
 
@@ -58,16 +60,16 @@ int main() {
     std::cout << "\n===== 2. access =====\n";
     try {
         std::cout << "  std::get<Quote>(e) -> ";
-        auto q = std::get<Quote>(e);        // e holds Trade -> throws
+        auto q = std::get<Quote>(e);        // e mein Trade hai -> throw
         std::cout << q.bid << "\n";
     } catch (const std::bad_variant_access&) {
         std::cout << "throw std::bad_variant_access  (e holds Trade, not Quote)\n";
     }
 
-    if (const Trade* t = std::get_if<Trade>(&e))   // ✅ no-throw check
+    if (const Trade* t = std::get_if<Trade>(&e))   // ✅ bina throw ka check
         std::cout << "  get_if<Trade> -> " << t->qty << " @ " << t->price << "\n";
 
-    std::visit(EventPrinter{}, e);          // ✅ dispatch on active type
+    std::visit(EventPrinter{}, e);          // ✅ jo type active hai uske handler pe dispatch
 
     // ============================================================
     //  3. Stream processing

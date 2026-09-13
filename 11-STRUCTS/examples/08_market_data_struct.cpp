@@ -20,20 +20,26 @@
 #include <type_traits>
 
 // ------------------------------------------------------------
-//  A "quote" message, 32 bytes, no implicit padding.
-//  Members in descending alignment order -> layout natural + tight.
+//  Ek "quote" message, 32 bytes, koi chhupi padding nahi.
+//  Members CHHOTE se BADE order mein hain (1,1,2,4,8,4,4,4,4) aur har member
+//  pehle se hi apne natural offset pe baithta hai (0,1,2,4,8,16...) -> bina
+//  pack ke bhi sizeof 32 aur saare offsets same (GCC 16.2 pe pack hata ke
+//  chalaya: sirf alignof 8 ho gaya). pack(1) yahan layout ki GUARANTEE hai
+//  (alignof 1 -> kisi bhi byte buffer position pe fit), size ki bachat nahi.
 // ------------------------------------------------------------
 enum class Side : std::uint8_t { Buy = 'B', Sell = 'S' };
 enum class MsgType : std::uint8_t { Quote = 'Q', Trade = 'T', Heartbeat = 'H' };
 
-#pragma pack(push, 1)          // NO padding at all -- har byte exact
+#pragma pack(push, 1)          // padding bilkul NAHI -- har byte exact
+                               // (dhyaan: GCC #pragma pack structs pe -Waddress-of-packed-member
+                               //  nahi deta; [[gnu::packed]] pe deta hai -- lesson 06)
 struct QuoteMsg {
     MsgType       type;        // offset 0   (1)
     Side          side;        // offset 1   (1)
     std::uint16_t venue;       // offset 2   (2)
     std::uint32_t seq;         // offset 4   (4)
     std::int64_t  timestampNs; // offset 8   (8)
-    std::int32_t  bidPrice;    // offset 16  (4)  -- fixed-point (e.g. * 1e4)
+    std::int32_t  bidPrice;    // offset 16  (4)  -- fixed-point (jaise * 1e4)
     std::int32_t  askPrice;    // offset 20  (4)
     std::uint32_t bidSize;     // offset 24  (4)
     std::uint32_t askSize;     // offset 28  (4)
@@ -48,7 +54,7 @@ static_assert(offsetof(QuoteMsg, bidPrice) == 16,    "bidPrice at offset 16");
 static_assert(offsetof(QuoteMsg, askSize)  == 28,    "askSize at offset 28");
 static_assert(std::is_trivially_copyable_v<QuoteMsg>, "must be memcpy-able");
 
-// ---- endianness: wire is big-endian, x86 is little-endian ----
+// ---- endianness: wire big-endian hai, x86 little-endian ----
 // (std::byteswap C++23 hai; yahan manual -- __builtin_bswap ya C++23 std::byteswap use karo)
 template <typename T>
 constexpr T byteSwap(T v) {
@@ -74,11 +80,11 @@ int main() {
     std::cout << "  offsets: type=0 side=1 venue=2 seq=4 ts=8 bid=16 ask=20 bidSz=24 askSz=28\n";
 
     // ============================================================
-    //  Decode: raw bytes -> struct  (zero-copy view, then fix endianness)
+    //  Decode: raw bytes -> struct  (memcpy, phir endianness theek)
     // ============================================================
     std::cout << "\n===== decode from raw bytes =====\n";
 
-    // simulate a received buffer (little-endian values here for demo simplicity)
+    // "received buffer" ka natak (demo simple rakhne ke liye values little-endian hi hain)
     QuoteMsg src{};
     src.type = MsgType::Quote;  src.side = Side::Buy;
     src.venue = 7;  src.seq = 123456;  src.timestampNs = 1'700'000'000'000'000'000LL;
@@ -87,9 +93,11 @@ int main() {
     alignas(QuoteMsg) unsigned char buffer[sizeof(QuoteMsg)];
     std::memcpy(buffer, &src, sizeof(src));       // "network se aaya"
 
-    // zero-copy: buffer ko struct ki tarah padho (trivially copyable + packed)
+    // buffer ke bytes ek asli QuoteMsg object mein copy (trivially copyable hai isliye allowed).
+    // Yeh zero-copy NAHI -- 32 bytes ki copy hai, jo -O2 pe kuch mov instructions ban jaati hai.
+    // Zero-copy (reinterpret_cast) ka lalach mat karo -- neeche wajah.
     QuoteMsg msg;
-    std::memcpy(&msg, buffer, sizeof(msg));       // ✅ safe: no aliasing UB, no unaligned deref
+    std::memcpy(&msg, buffer, sizeof(msg));       // ✅ safe: aliasing UB nahi, unaligned deref nahi
 
     std::cout << "  type = " << static_cast<char>(msg.type)
               << "  side = " << static_cast<char>(msg.side)
@@ -100,12 +108,12 @@ int main() {
     std::cout << "  spread = " << (msg.askPrice - msg.bidPrice) / 10000.0 << "\n";
 
     // endianness demo: agar seq wire pe big-endian aata
-    const std::uint32_t wireSeq = byteSwap(msg.seq);          // "as if big-endian on the wire"
+    const std::uint32_t wireSeq = byteSwap(msg.seq);          // "maano wire pe big-endian aaya"
     std::cout << "  seq " << msg.seq << " -> byteSwap -> 0x" << std::hex << wireSeq << std::dec
               << " -> fromBigEndian -> " << fromBigEndian(wireSeq) << "\n";
 
     // ============================================================
-    //  Why packed + memcpy (not reinterpret_cast)
+    //  packed + memcpy kyun (reinterpret_cast kyun nahi)
     // ============================================================
     std::cout <<
         "\n"

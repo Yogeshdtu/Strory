@@ -82,8 +82,11 @@ alag lines aayengi.
 | Ek entity ke saare fields ek saath | **AoS** |
 | Mila-jula | AoSoA (hybrid), ya profile karke decide karo |
 
-⚠️ `-O3 -march=native` pe compiler AoS ko bhi zor se vectorize (gather) kar sakta hai — gap kam
-ho sakta hai, kabhi chhote tasks mein ulta bhi. **Apne target hardware + flags pe naapo.**
+⚠️ `-O3 -march=native` pe compiler AoS loop ko bhi vectorize kar sakta hai — par vectorize hona
+≠ tez hona. `11-STRUCTS/examples/04_aos_vs_soa.cpp` (max of one field, Zen 2, GCC 16.2) mein AoS
+loop vectorize hua (gather nahi — har element ka alag `vmovd` load) aur phir bhi ~210 ms pe atka
+raha, kyunki seema memory bandwidth thi; SoA 93 → 25 ms gaya aur gap 2.3× se **8–10×** ho gaya.
+Chhote tasks mein gap ulta bhi ja sakta hai. **Apne target hardware + flags pe naapo.**
 
 ---
 
@@ -146,8 +149,9 @@ vectorized loads aasaan, aur false sharing (folder 28) se bachav.
   seema aksar **memory bandwidth** banti hai, ek-ek cache miss nahi.
 - Koodte hue access (AoS ka single field, column-major) → har cache line ka chhota hissa hi kaam
   ka → utne hi data ke liye zyada lines laani padti hain.
-- `-O2` contiguous same-type loops vectorize karta hai (SoA ideal); AoS ke single field ko
-  gather chahiye (slow, aur aksar `-O3`/`-march=native` pe hi).
+- `-O2` seedhe-saade contiguous same-type loops vectorize karta hai (SoA ideal). AoS ke single
+  field ke liye compiler ko har stride se alag-alag load karke vector banana padta hai — hota bhi
+  hai (GCC 16.2 `-O3 -march=native` pe dekha), par bandwidth ki seema nahi hatti.
 - Stack array: frame pehle se L1/L2 mein → pehla touch sasta. Heap ke naye pages → pehle touch pe
   page fault + zero-fill (folder 29).
 

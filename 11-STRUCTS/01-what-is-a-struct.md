@@ -23,13 +23,15 @@ struct Point {
 };   // <-- SEMICOLON zaroori (type define kar rahe ho -- folder 02 file 06 se)
 ```
 
-`Point` ab ek **type** hai, `int` / `double` ki tarah. Uske instances bana sakte
-ho:
+`Point` ab ek **type** hai, `int` / `double` ki tarah. Uske instances bana sakte ho:
 
 ```cpp
-Point p;              // ⚠️ members UNINITIALIZED (garbage -- like a local array)
-Point q{3.0, 4.0};    // aggregate init -- members declaration order mein
+Point p;              // ⚠️ members UNINITIALIZED (garbage -- local array jaisa)
+Point q{3.0, 4.0};    // aggregate init -- members declaration ke order mein
 ```
+
+Analogy: struct ek **form** ka design hai (naam, roll number, marks ke khaane). `Point p;` us form ki
+ek khaali copy hai — khaano mein abhi kuch bhi likha ho sakta hai (garbage), jab tak aap bharo nahi.
 
 ### Members access — dot operator
 
@@ -40,17 +42,17 @@ double d = p.x;
 p.x += 1.0;
 ```
 
-`p.x` = "`p` ka `x` member". Members mutable hain (jab tak `const` na ho).
+`p.x` = "`p` ka `x` member". Members badal sakte ho (jab tak `const` na ho).
 
 ---
 
-## Kyun struct
+## Struct kyun
 
 ```cpp
-// ❌ Bina struct -- related cheezein bikhri hui
+// ❌ Bina struct -- jude hue data bikhre pade hain
 double x1, y1;
 double x2, y2;
-void move(double& x, double& y, double dx, double dy);   // awkward
+void move(double& x, double& y, double dx, double dy);   // bhaari
 
 // ✅ Struct -- ek unit
 struct Point { double x, y; };
@@ -58,45 +60,44 @@ Point a, b;
 void move(Point& p, Point delta);
 ```
 
-- **Grouping** — jo cheezein saath rehti hain, ek naam
-- **Pass as one** — function ko `Point` do, `x` aur `y` alag-alag nahi
-- **Return as one** — `Point midpoint(Point, Point)`
-- **Array of records** — `std::vector<Order>` not `vector<double> prices; vector<int> qtys;`
-  (well, sometimes SoA — file 07)
-- **Documentation** — `order.isBuy` >> a bare `bool`
+- **Grouping** — jo cheezein saath rehti hain, unka ek naam
+- **Ek saath pass** — function ko `Point` do, `x` aur `y` alag-alag nahi
+- **Ek saath return** — `Point midpoint(Point, Point)`
+- **Records ka array** — `std::vector<Order>`, na ki `vector<double> prices; vector<int> qtys;`
+  (haan, kabhi-kabhi SoA behtar hota hai — file 07)
+- **Documentation** — `order.isBuy` akele `bool` se kahin zyada saaf
 
 ---
 
-## Value semantics — copy is a full copy
+## Value semantics — copy matlab poori copy
 
 ```cpp
 struct Order { std::uint64_t id; std::string symbol; double price; std::int64_t qty; };
 
 Order a{1, "AAPL", 192.34, 100};
-Order b = a;                     // FULL copy -- id, symbol (string alloc if long), price, qty
+Order b = a;                     // POORI copy -- id, symbol (lambi ho to string alloc), price, qty
 b.qty = 999;
-// a.qty still 100 -- b is independent
+// a.qty abhi bhi 100 -- b alag hai
 ```
 
-Struct assignment / copy-construction = **member-by-member copy** (compiler-
-generated, folder 18 mein customize). Passing by value → copy. Big structs →
-pass by `const&` (file 04).
+Struct ka assignment / copy-construction = **member-by-member copy** (compiler khud banata hai; folder
+18 mein ise customize karenge). By value pass karna → copy. Bade structs → `const&` se pass karo (file 04).
 
 ---
 
-## Functions with structs
+## Functions aur structs
 
 ```cpp
-double distance(const Point& a, const Point& b) {        // by const& -- no copy
+double distance(const Point& a, const Point& b) {        // const& se -- copy nahi
     double dx = a.x - b.x, dy = a.y - b.y;
     return std::sqrt(dx*dx + dy*dy);
 }
 
 Point midpoint(const Point& a, const Point& b) {
-    return { (a.x + b.x)/2, (a.y + b.y)/2 };             // return by value -- RVO, free
+    return { (a.x + b.x)/2, (a.y + b.y)/2 };             // value se return -- RVO, free
 }
 
-void scale(Point& p, double k) { p.x *= k; p.y *= k; }   // by ref -- modifies caller's
+void scale(Point& p, double k) { p.x *= k; p.y *= k; }   // ref se -- caller ka badalta hai
 ```
 
 ---
@@ -108,37 +109,36 @@ struct Point { double x, y; };
 sizeof(Point)                   // 16  (8 + 8)
 
 struct Mixed { char c; double d; int i; };
-sizeof(Mixed)                   // 24, NOT 13 -- padding (file 05)
+sizeof(Mixed)                   // 24, 13 NAHI -- padding (file 05)
 ```
 
-Members contiguous hote hain (declaration order), par compiler alignment ke liye
-**gaps (padding)** daal deta hai. File 05 mein poora — aur reorder se save.
+Members memory mein ek ke baad ek hote hain (declaration order mein), par compiler alignment ke liye
+beech mein **khaali jagah (padding)** daal deta hai. File 05 mein poori baat — aur reorder karke bachat.
 
 ---
 
 ## Andar kya hota hai
 
-- A struct is just its members laid out in memory in **declaration order**, with
-  padding inserted so each member is naturally aligned (file 05).
-- `p.x` → `load [address_of_p + offset_of_x]` — a fixed compile-time offset. Same
-  cost as a bare variable.
-- Copy → `memcpy` of `sizeof` bytes (trivial members) or member-wise (non-trivial
-  like `std::string`).
-- No hidden data for a plain struct — no vtable, no header (that's `class` with
-  `virtual`, folder 16). `sizeof` is exactly the layout.
+- Struct bas uske members hain jo memory mein **declaration order** mein rakhe gaye hain, beech mein
+  padding ke saath taaki har member apni alignment pe baithe (file 05).
+- `p.x` → `load [p ka address + x ka offset]` — ek fixed compile-time offset. Akele variable jitni hi cost.
+- Copy → trivial members ke liye `sizeof` bytes ka `memcpy`; non-trivial (jaise `std::string`) ke liye
+  member-by-member.
+- Plain struct mein koi chhupa data nahi — na vtable, na header (woh `virtual` wali `class` mein hota
+  hai, folder 16). `sizeof` bilkul layout jitna.
 
-> **HFT relevance:** Structs *are* the data model in HFT — order records, book
-> levels, wire messages, market-data snapshots. Because a plain struct's layout
-> is exactly its members (no hidden overhead), you can `memcpy` it, `static_assert`
-> its `sizeof`, map it onto a network buffer, and reason about exactly which
-> bytes land in a cache line. Files 05–08 are all about controlling that layout.
+> **HFT relevance:** HFT mein structs hi data model *hain* — order records, book levels, wire messages,
+> market-data snapshots. Kyunki plain struct ka layout bilkul uske members jitna hai (koi chhupa kharcha
+> nahi), aap use `memcpy` kar sakte ho, uske `sizeof` pe `static_assert` laga sakte ho, network buffer
+> pe map kar sakte ho, aur theek-theek soch sakte ho ki kaunse bytes kaunsi cache line mein aayenge.
+> Files 05–08 isi layout ko control karne ke baare mein hain.
 
 ---
 
 ## Hands-on
 
-`examples/01_struct_basics.cpp` — instances, dot access, `const&` params, return
-by value, `vector<Point>`, `sizeof`:
+`examples/01_struct_basics.cpp` — instances, dot access, `const&` params, value se return,
+`vector<Point>`, `sizeof`:
 
 ```bash
 ./build.ps1 11-STRUCTS/examples/01_struct_basics.cpp
@@ -148,9 +148,9 @@ by value, `vector<Point>`, `sizeof`:
 
 ## ⚠️ Traps
 
-### Trap 1 — missing semicolon after `}`
+### Trap 1 — `}` ke baad semicolon bhoolna
 ```cpp
-struct P { int x; }        // ❌ ERROR (often points at the NEXT line)
+struct P { int x; }        // ❌ ERROR (aksar AGLI line ki taraf ishaara karta hai)
 int main() { ... }
 ```
 
@@ -159,19 +159,20 @@ int main() { ... }
 Point p;                   // members garbage. Point p{}; -> zero
 ```
 
-### Trap 3 — big struct by value
+### Trap 3 — bada struct by value
 ```cpp
-void f(BigStruct s);       // ⚠️ full copy per call. const BigStruct&
+void f(BigStruct s);       // ⚠️ har call pe poori copy. const BigStruct& lo
 ```
 
-### Trap 4 — comparing structs with `==`
+### Trap 4 — structs ko `==` se compare karna
 ```cpp
-if (a == b) { }            // ❌ ERROR by default (no operator==). = default it (folder 18) or write it
+if (a == b) { }            // ❌ default mein ERROR (operator== nahi hai). = default karo (folder 18) ya khud likho
 ```
+`= default` sirf **member ya friend** ki tarah chalta hai — free function ki tarah nahi (Exercise 5).
 
-### Trap 5 — expecting `sizeof` == sum of members
+### Trap 5 — `sizeof` ko members ka jod samajhna
 ```cpp
-struct M { char c; int i; };  sizeof(M) == 8, not 5   // padding (file 05)
+struct M { char c; int i; };  sizeof(M) == 8, 5 nahi   // padding (file 05)
 ```
 
 ---
@@ -180,33 +181,40 @@ struct M { char c; int i; };  sizeof(M) == 8, not 5   // padding (file 05)
 
 | ❌ Galat | ✅ Sahi |
 |---|---|
-| "Struct ke members initialize hote hain" | Local: garbage. `P p{};` for zero |
-| "`b = a` shares data" | Full member-wise copy (independent) |
-| "Struct pass by value is fine" | Copies — `const&` for big ones |
-| "`sizeof(struct)` = sum of member sizes" | + padding (file 05) |
-| "Plain struct has hidden overhead" | No — layout is exactly its members |
+| "Struct ke members apne aap initialize hote hain" | Local: garbage. Zero ke liye `P p{};` |
+| "`b = a` data share karta hai" | Poori member-by-member copy (alag-alag) |
+| "Struct by value pass karna theek hai" | Copy hota hai — bade ke liye `const&` |
+| "`sizeof(struct)` = members ke size ka jod" | + padding (file 05) |
+| "Plain struct mein chhupa kharcha hai" | Nahi — layout bilkul members jitna |
 
 ---
 
 ## Exercises
 
-1. **Define + use:** `struct Rect { double w, h; };` — `area(const Rect&)`,
-   `Rect scaled(const Rect&, double)`, `bool isSquare(const Rect&)`. Test.
+1. **Define + use:** `struct Rect { double w, h; };` — `area(const Rect&)`, `Rect scaled(const Rect&,
+   double)`, `bool isSquare(const Rect&)`. Test karo.
 
-2. **Record:** `struct Student { std::string name; int rollNo; double gpa; };` —
-   a `std::vector<Student>`, print the top-GPA one.
+2. **Record:** `struct Student { std::string name; int rollNo; double gpa; };` — ek
+   `std::vector<Student>` banao, sabse zyada GPA wala print karo.
 
-3. **Value semantics:** `Student a = ...; Student b = a; b.gpa = 4.0;` — is
-   `a.gpa` changed? Why?
+3. **Value semantics:** `Student a = ...; Student b = a; b.gpa = 4.0;` — `a.gpa` badla? Kyun?
 
-4. **sizeof surprise:** `struct A { char c; double d; };` and `struct B { double
-   d; char c; };` — `sizeof` of each. Same? (Preview — file 05.)
+4. **sizeof surprise:** `struct A { char c; double d; };` aur `struct B { double d; char c; };` — dono ka
+   `sizeof`. Same? (Jhalak — file 05.)
 
-5. **`==`:** try `if (rect1 == rect2)`. Error? Add `bool operator==(const Rect&,
-   const Rect&) = default;` (C++20) — now?
+5. **`==`:** `if (rect1 == rect2)` try karo. Error aaya? Ab struct ke andar
+   `bool operator==(const Rect&) const = default;` (C++20) jodo — ab?
+   <details><summary>Answer</summary>
 
-6. **By value cost:** `struct Big { double data[100]; };` — `void f(Big)` vs
-   `void f(const Big&)`, 1M calls, `-O2`, time.
+   Pehle: error — `Rect` ke liye `operator==` hai hi nahi. Member version jodne ke baad chal jaata hai,
+   member-by-member compare. Dhyaan: agar yahi line struct ke **bahar** free function ki tarah likhoge —
+   `bool operator==(const Rect&, const Rect&) = default;` — to GCC 16.2 error deta hai: `defaulted
+   'bool operator==(...)' is not a friend of 'Rect'` (chala ke dekha). Defaulted comparison ya to member
+   ho, ya struct ke andar `friend` declare ho.
+   </details>
+
+6. **By value cost:** `struct Big { double data[100]; };` — `void f(Big)` vs `void f(const Big&)`, 1M
+   calls, `-O2`, time lo.
 
 ---
 
