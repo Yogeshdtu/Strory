@@ -101,6 +101,25 @@ std::string banner = prefix + "started";   // ⚠️ prefix abhi construct hua y
 Agar `b.cpp` ka dynamic init `a.cpp` ke pehle chala → `prefix` abhi empty/garbage
 (zero-initialized, constructor nahi chala) → `banner` galat, ya crash.
 
+⚠️ **C++20 ka twist (GCC 16.2 pe chala ke):** `std::string prefix = "LOG: ";` jaisi **chhoti** string ab
+**constant-initialize** ho jaati hai (constexpr `std::string` + SSO) — woh dynamic init se pehle hi taiyaar hai,
+isliye yeh example fiasco **dikhata hi nahi**. Fiasco dekhna ho to aisa init lo jo sach mein runtime pe chale:
+
+```cpp
+// a.cpp
+std::string P(40, 'p');            // 40 chars > SSO -> heap -> dynamic init
+// b.cpp
+extern std::string P;
+std::string Q = P + "q";
+```
+
+| Build (MinGW GCC 16.2) | `Q.size()` |
+|---|---|
+| `g++ a.cpp b.cpp` | **1** ❌ — `Q` pehle bana, `P` tab khaali tha |
+| `g++ b.cpp a.cpp` | **41** ✅ |
+
+Sirf command line pe files ka order badla, result badal gaya. Yahi "unspecified" ka matlab hai.
+
 ### Fix: "construct on first use" (function-local static)
 
 ```cpp
@@ -166,16 +185,26 @@ void process(std::span<const char> in) {
 - **Constant-init statics** → binary ki `.data`/`.rodata` mein value; load pe
   `mmap`, zero runtime init.
 - **Zero-init** → `.bss`, demand-zero pages.
-- **Dynamic-init** → compiler har TU ke liye ek `__static_initialization...`
-  function banata; unke pointers ek `.init_array` section mein; CRT startup
-  (`__libc_csu_init`) `main` se pehle sab call karta.
+- **Dynamic-init** → compiler har TU ke liye ek `__static_initialization_and_destruction_0` function banata
+  (`objdump -t file.o` mein dikhta hai). Linux pe unke pointers `.init_array` section mein jaate hain aur libc
+  ka startup code `main` se pehle sab call karta hai. **MinGW pe** GCC `main` ki pehli line mein `call __main`
+  daal deta hai (assembly mein dekha) — wahi saare global constructors chalata hai.
 - **Function-local static** → hidden `guard` byte (`__cxa_guard_acquire/release`).
   Pehli call: lock, init, guard set. Baad ki calls: ek atomic load check (branch,
   predictable) → practically free. Init me exception → guard reset, agli call
   phir try.
-- **`thread_local`** → access ke liye ek indirection (TLS block base +
-  offset; `%fs`/`%gs` segment register x86 pe). Thoda mehnga plain global se,
-  par lock-free per-thread.
+- **`thread_local`** → access ke liye ek indirection. Linux x86-64 pe TLS block base `%fs` segment register se
+  aata hai — ek load, global ke kareeb sasta (ABI ke hisaab se; is box pe naapa nahi).
+- ⚠️ **MinGW GCC pe `thread_local` "emulated TLS" hai** — har access ek function call: `call __emutls_get_address`
+  (GCC 16.2 `-O2` assembly mein dekha). Naapa (1e8 `++t` vs `++global`, 3 runs):
+
+  | Build | `thread_local` | plain global |
+  |---|---|---|
+  | normal (libgcc DLL) | **~351 ns/access** | 1.7 ns |
+  | `-static` | **~20 ns/access** | 1.7 ns |
+
+  Yaani is toolchain pe hot loop mein `thread_local` 12–200x mehnga. Hot path mein use karna ho to pointer ek
+  baar local mein lo (`auto& buf = t_buf;`) aur loop mein wahi use karo.
 
 > **HFT relevance:** `thread_local` per-thread scratch/pool/RNG ke liye ideal —
 > zero contention, zero per-call allocation (buffer capacity persist karti).
@@ -184,7 +213,9 @@ void process(std::span<const char> in) {
 > fiasco ko "construct on first use" se avoid; kuch shops startup pe hi
 > explicitly warm/initialize order-controlled tareeke se karte (no reliance on
 > cross-TU order). Hot path pe `thread_local` dynamic-init guard ka chhota cost
-> bhi dhyaan mein — POD `thread_local` (guard-free) prefer.
+> bhi dhyaan mein — POD `thread_local` (guard-free) prefer. Aur **platform ka TLS model check karo**: Linux pe
+> `%fs`-relative load sasta hai, par MinGW ke emulated TLS pe har access ek call hai (yahan 20–351 ns naapa) —
+> thread ke start pe `thread_local` ka reference ek baar lo, hot loop mein wahi reference use karo.
 
 ---
 
@@ -247,6 +278,8 @@ C++11+ mein thread-safe (guarded). C++03 / `-fno-threadsafe-statics` pe race.
 | "`static` local har call init hota" | Sirf pehli call; C++11 se thread-safe |
 | "`thread_local` = shared across threads" | Per-thread copy — opposite of shared |
 | "Constant-init aur dynamic-init same cost" | Constant: zero runtime. Dynamic: `main` se pehle chalta |
+| "`thread_local` ka access global jitna sasta" | Linux `%fs` pe lagbhag; MinGW emulated TLS pe har access call (20–351 ns naapa) |
+| "Har global `std::string` fiasco ka shikaar" | C++20 mein chhoti literal string constant-init — lambi/heap wali dynamic |
 
 ---
 
@@ -268,9 +301,10 @@ C++11+ mein thread-safe (guarded). C++03 / `-fno-threadsafe-statics` pe race.
 
    <details><summary>Answer</summary>
 
-   Link order / TU order pe depend — `Q` ka init `P` se pehle chal sakta →
-   `Q == "q"` (P empty) ya crash. `const std::string& P()` first-use accessor se
-   deterministic.
+   ⚠️ `std::string P = "p";` se **fiasco nahi dikhega** — C++20 mein yeh constant-init hai (GCC 16.2 pe dono link
+   orders mein `Q == "pq"` aaya). `std::string P(40, 'p');` lo (heap → dynamic init). MinGW GCC 16.2 pe naapa:
+   `g++ a.cpp b.cpp` → `Q.size() == 1` (P khaali tha), `g++ b.cpp a.cpp` → `41` (sahi). Link order badla, result
+   badla. `const std::string& P()` first-use accessor se deterministic.
    </details>
 
 3. **`thread_local` independence:** `thread_local int t = 0;` — 4 threads, har

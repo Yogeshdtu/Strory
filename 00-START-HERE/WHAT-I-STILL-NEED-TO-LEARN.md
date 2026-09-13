@@ -692,10 +692,10 @@ dekho.
   prevention); **UAF / double-free** (why "sometimes works", block reuse,
   `delete this`); `static` / `thread_local` (4 durations, 2-phase init,
   **static-init-order fiasco + fix**); **allocation cost — measured** (stack vs
-  heap ~83x; latency distribution p50/p90/p99/p99.9/max via rdtsc; tail = lock/
+  heap ~37 ns vs <1 ns on GCC 16.2; latency distribution p50/p90/p99/p99.9/max via rdtsc; tail = lock/
   syscall/page-fault); **fragmentation** (internal/external, why RSS creeps, no
   compaction in C++); **custom allocation intro** (placement new, arena/bump,
-  fixed-size pool — measured ~190x + flat tail, `std::pmr` preview); **memory
+  fixed-size pool — measured ~21x on a 64-order burst + flat tail, `std::pmr` preview); **memory
   tools** (ASan/LSan/MSan/UBSan/Valgrind/heaptrack tool→bug matrix + MinGW
   limits & workarounds)
 - **Classes (folder 15)**: encapsulation + invariants (BankAccount /

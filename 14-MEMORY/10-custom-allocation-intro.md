@@ -31,8 +31,9 @@ w->~Widget();                          // destructor MANUALLY (delete nahi -- me
 - `new (ptr) T(args)` → `ptr` pe `T` construct, `ptr` hi return.
 - **Koi matching `delete` nahi** — `delete w` yahan galat (woh `buf` ko free
   karne ki koshish karega). Sirf `w->~T()` explicitly.
-- Storage ki **alignment** `T` ke liye sahi honi chahiye (`alignas(T)` / `std::
-  aligned_storage` / allocator-returned memory).
+- Storage ki **alignment** `T` ke liye sahi honi chahiye (`alignas(T)` / allocator-returned memory).
+  (`std::aligned_storage` purane code mein milega — C++23 mein deprecated; `alignas(T) std::byte buf[sizeof(T)]`
+  likho.)
 
 Yeh woh mechanism hai jisse `std::vector` apni `reserve()` ki hui (but unused)
 memory pe elements ko demand pe construct karta hai — capacity ≠ constructed
@@ -82,8 +83,11 @@ void* allocate()      { void* p = free_; free_ = *(void**)p; return p; }   // O(
 void  deallocate(void* p) { *(void**)p = free_; free_ = p; }               // O(1)
 ```
 
-- `allocate`/`deallocate` = ek pointer load + ek store → **~0.4 ns measured**,
-  `new`/`delete` se **~190x tez**, aur **flat tail** (no branch to slow path).
+- `allocate`/`deallocate` = do-teen pointer loads/stores → GCC 16.2 `-O2`, 64 orders ka burst (allocate +
+  placement new → read + free): **1.70–1.85 ns/pair** vs `new`/`delete` **38–39 ns/pair** → **~21x tez**, aur
+  **flat tail** (slow path hai hi nahi).
+- ⚠️ Pehle yahan "~0.4 ns, ~190x" likha tha — woh benchmark har baar *wahi* slot lekar turant wapas deta
+  tha, aur GCC ne poora pop+push ek `mov` bana diya tha (file 08 mein kahani). Pool fast hai, par 190x nahi.
 - External fragmentation **impossible** (sab slots ek size).
 - Ek size ke liye (order objects, event structs). Mixed sizes → alag pools.
 - Combine with placement new: `void* m = pool.allocate(); T* t = new (m) T(...);
@@ -147,7 +151,7 @@ Yeh "custom allocator" ka modern, composable roop — poori detail folder 22.
 ## Hands-on
 
 ```bash
-./build.ps1 fast 14-MEMORY/examples/07_simple_pool.cpp    # pool vs new ~190x, placement new
+./build.ps1 fast 14-MEMORY/examples/07_simple_pool.cpp    # pool vs new ~21x (burst), placement new
 ```
 
 Aur khud: upar wala `Arena` likho, ek loop mein 1000 chhote structs `alloc`
@@ -195,6 +199,8 @@ FixedPool p(64, N);  p.allocate();  // ⚠️ 100-byte object? overflow. Ek pool
 | "Arena se individual free ho sakta" | Nahi — `reset()` sab ek saath. Individual → pool |
 | "Pool har size ke liye kaam karta" | Ek pool = ek fixed size. Mixed → multiple pools |
 | "Custom allocator = advanced, avoid" | Hot path ke liye zaroori; `std::pmr` se aasan |
+| "Pool `new` se ~190x tez" | Asli burst workload pe ~21x (is machine pe); 190x ek khaali loop tha |
+| "`operator new` replace kiya to saari allocations gini jaayengi" | MinGW DLL build pe libstdc++ ke andar ki calls nahi — `-static` |
 
 ---
 
@@ -218,8 +224,10 @@ FixedPool p(64, N);  p.allocate();  // ⚠️ 100-byte object? overflow. Ek pool
 
    <details><summary>Answer</summary>
 
-   Arena ~1-2 ns/alloc (bump + align), `::operator new` ~30-80 ns fast path.
-   ~20-50x, aur arena ka tail flat (no syscall/lock). `reset()` ~0.
+   GCC 16.2 `-O2`, 10,000 random 8–128 B sizes × 500 rounds, har allocation ka pehla byte likha (3 runs):
+   Arena **1.6–2.6 ns/alloc** (bump + align), `::operator new`+`delete` **43–70 ns/pair** (pehla run sabse slow —
+   heap abhi grow ho raha tha) → **~17–45x**. Aur arena ka tail flat (no syscall/lock). `reset()` ~0.
+   ⚠️ Kaam ko `[[gnu::noipa]]` functions mein rakho, warna compiler unused allocations elide kar sakta hai.
    </details>
 
 3. **Pool + placement new:** `07_simple_pool.cpp` ke `FixedPool` se `Order`
@@ -228,9 +236,10 @@ FixedPool p(64, N);  p.allocate();  // ⚠️ 100-byte object? overflow. Ek pool
 
    <details><summary>Answer</summary>
 
-   Pool+placement: ~1-3 ns (pointer swap + trivial ctor). `new`/`delete` ~80 ns.
-   ~30-190x machine pe depend. Order trivially destructible ho to `~Order()`
-   no-op.
+   `07_simple_pool.cpp` ka burst version (GCC 16.2 `-O2`): pool+placement **1.70–1.85 ns/pair**, `new`/`delete`
+   **38–39 ns/pair** → **~21x**. `Order` trivially destructible hai to `~Order()` no-op. ⚠️ Agar loop ek hi slot
+   baar-baar le aur de, compiler use ek `mov` bana deta hai — assembly dekh ke confirm karo ki asli kaam naap
+   rahe ho.
    </details>
 
 4. **`std::pmr`:** `std::pmr::monotonic_buffer_resource` + `std::pmr::vector<int>`
@@ -239,9 +248,16 @@ FixedPool p(64, N);  p.allocate();  // ⚠️ 100-byte object? overflow. Ek pool
 
    <details><summary>Answer</summary>
 
-   pmr + big-enough stack buffer → **0** global `operator new` (sab buffer se).
-   Buffer overflow ho to resource upstream (default `new_delete_resource`) se
-   maangta. Plain vector → ~17 reallocs.
+   GCC 16.2 pe gin ke: pmr + bada buffer (2 MB) → **0** global `operator new` (sab buffer se). Plain vector →
+   **18** `operator new`. Buffer chhota (64 KB) ho to resource upstream (default `new_delete_resource`) se
+   maangta hai — woh **aligned** `operator new(size, std::align_val_t)` bulata hai: `-static` build mein **4**
+   aligned calls gine.
+
+   ⚠️ **MinGW trap:** normal (DLL) build mein wahi counter **0** dikhata hai! `new_delete_resource` ka code
+   `libstdc++-6.dll` ke andar hai, aur Windows pe exe mein replace kiya `operator new` DLL ke andar ki calls ko
+   nahi pakadta (Linux ki tarah symbol interposition nahi). Template code (jaise `std::vector`, `std::string`)
+   exe mein instantiate hota hai, isliye woh gina jaata hai. Library ke andar ki allocations ginni hain to
+   `-static` se link karo.
    </details>
 
 5. **Reset UAF:** arena se ek pointer lo, `reset()`, phir us pointer se likho.

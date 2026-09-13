@@ -138,7 +138,7 @@ int main() {
     std::printf(
         "\n  Padhne ka tareeka:\n"
         "  - C (kuch nahi karta) ka p50/p99.9 ~flat (10-20 ns = do lfence+rdtsc ka apna cost).\n"
-        "  - A / B ka MEDIAN bhi theek (~40-50 ns) -- par p99.9 aur max bahut upar\n"
+        "  - A / B ka MEDIAN bhi theek (tens of ns, C ka floor samet) -- par p99.9 aur max bahut upar\n"
         "    (max: tens of us se milliseconds tak, run-variable -- OS se memory\n"
         "     maangi / heap lock / page fault).\n"
         "  - Wahi ek tail spike HFT hot path pe allowed nahi -> pre-alloc / pool / arena\n"

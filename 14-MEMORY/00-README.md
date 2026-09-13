@@ -46,8 +46,12 @@ Aur yahan **allocation cost** samjhenge — jo HFT low-latency ka core problem h
 examples. Memory layout, stack/heap deep dive, `new`/`delete`, leaks, UAF/double-
 free, `static`/`thread_local`, **allocation cost** (measured), fragmentation,
 placement-new + arena/pool intro, aur memory tools (ASan/Valgrind/heaptrack +
-MinGW alternatives). Measured: stack vs heap **~83x** (`02`), allocation tail
-p50 ~50 ns / max ~1 ms (`06`), fixed pool vs `new` **~190x** (`07`).
+MinGW alternatives). Naapa (GCC 16.2, `-O2`, Windows UCRT heap): heap `new[]`+`delete[]`
+~37 ns/iter vs stack <1 ns (`02`), allocation p50 30 ns / p99.9 110–430 ns / max 7–109 µs
+(`06`), fixed pool vs `new` **~21x** on a 64-order burst (`07`). Hinglish pass mein
+theek kiya: `07` ka purana "~190x" ek compiler-folded khaali loop tha; Windows stack
+limits (MinGW 2 MB); MinGW pe `operator new` replacement DLL ke andar ki allocations
+nahi dekhta.
 
 ## Next
 → [`../15-CLASSES/00-README.md`](../15-CLASSES/00-README.md)

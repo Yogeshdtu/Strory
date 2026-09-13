@@ -38,9 +38,16 @@ Har function call ek **frame** push karta hai (folder 08):
   jagah).
 - **Epilogue** → `mov rsp, rbp; pop rbp; ret` (frame instantly gaya).
 
-**"Allocation" = `sub rsp, N`** — ek instruction, N compile-time constant. Isiliye
-stack itna sasta hai ([`examples/02_stack_vs_heap.cpp`](examples/02_stack_vs_heap.cpp):
-stack per-iter ~0.85 ns vs heap ~71 ns → **~83x**).
+**"Allocation" = `sub rsp, N`** — ek instruction, N compile-time constant, aur woh bhi **function entry pe
+ek hi baar** — saare locals ka hisaab ek saath. Loop ke andar `int buf[64];` likha ho to bhi loop mein koi
+allocation instruction nahi hota (GCC 16.2 `-O2` assembly mein dekha). Isiliye stack itna sasta hai
+([`examples/02_stack_vs_heap.cpp`](examples/02_stack_vs_heap.cpp), `-O2`: stack loop 0.54–0.88 ns/iter — sirf
+loop ka apna kaam — vs `new[]`+`delete[]` loop 36–37 ns/iter → **~41–68x**; stack wala number itna chhota hai
+ki ratio run-to-run hilta hai).
+
+Windows x64 pe `sub rsp` mein 32 bytes ki **shadow space** bhi judti hai (callee ke liye register args ki
+jagah). Bahut bade frame (> 4 KB) pe MinGW pehle `___chkstk_ms` bulata hai jo har page ko kram se touch karta
+hai — taaki guard page ek-ek karke aage badhe.
 
 **"Deallocation" = `add rsp, N`** (ya `mov rsp, rbp`) — bhi ek instruction. Frame
 ke saare locals ek saath "gaye" — koi per-object cleanup nahi (destructors alag
@@ -76,11 +83,12 @@ depends on layout). Classic stack-smashing.
 |---|---|---|
 | Linux | 8 MB (`ulimit -s`) | `ulimit -s`, `setrlimit`, linker `-z stacksize` |
 | macOS | 8 MB (main), 512 KB (threads) | `pthread_attr_setstacksize` |
-| Windows | 1 MB (default) | linker `/STACK`, `CreateThread` param |
+| Windows (MSVC linker) | 1 MB (default) | linker `/STACK`, `CreateThread` param |
+| Windows (**MinGW `ld`, is course ka toolchain**) | **2 MB** — `objdump -p file.exe` → `SizeOfStackReserve 0x200000` | `-Wl,--stack,<bytes>` |
 
-Threads ka stack alag aur aksar chhota (Linux default 8 MB bhi, par settable;
-Windows 1 MB). **Stack RAM ke hisaab se nahi badhta** — yeh ek fixed reservation
-hai. Cross karo → crash.
+Threads ka stack alag hota hai (Linux default 8 MB, par settable). MinGW pe `std::thread` bhi exe ke header wala
+2 MB reserve leta hai — naap ke dekha: thread ke andar 1.5 MB local chala, 2.5 MB pe crash. MSVC build pe wahi
+code 1 MB pe mar jaata. **Stack RAM ke hisaab se nahi badhta** — yeh ek fixed reservation hai. Cross karo → crash.
 
 ---
 
@@ -89,17 +97,19 @@ hai. Cross karo → crash.
 ```cpp
 void infinite(int n) { int buf[256]; buf[0] = n; infinite(n + 1); }  // no base case
 infinite(0);
-// ~ (8 MB) / (256*4 + frame overhead) ≈ 7000-8000 calls -> SIGSEGV
+// Linux: ~ (8 MB) / (256*4 + frame overhead) ≈ 7000-8000 calls -> SIGSEGV
+// MinGW (2 MB): frame 1072 bytes (-O0, assembly se) -> ~1950 calls. Naapa: 1900 print hua, phir crash.
 ```
 
 Ya ek hi bade local se:
 
 ```cpp
-void f() { int big[3'000'000]; big[0] = 1; }   // ~12 MB > 8 MB -> crash on first touch
+void f() { int big[3'000'000]; big[0] = 1; }   // ~12 MB > 8 MB (Linux) / > 2 MB (MinGW) -> crash
 ```
 
 Symptoms:
-- **SIGSEGV** (Linux) / **stack overflow exception `0xC00000FD`** (Windows).
+- **SIGSEGV** (Linux) / **stack overflow exception `0xC00000FD`** (Windows). Git-Bash mein yeh exit code
+  `127` jaisa dikh sakta hai — `Segmentation fault` (139) wala message nahi aata.
 - Debugger mein: recursion ki hazaaron frames (agar recursion), ya crash `f` ke
   prologue mein (`sub rsp` ke turant baad pehla write).
 - `-fsanitize=address` → `stack-overflow`. `-fstack-protector` deep locals ke
@@ -173,7 +183,7 @@ void f(size_t n) {
 ## Hands-on
 
 ```bash
-./build.ps1 fast 14-MEMORY/examples/02_stack_vs_heap.cpp          # ~83x measured
+./build.ps1 fast 14-MEMORY/examples/02_stack_vs_heap.cpp          # heap ~37 ns vs stack <1 ns
 ./build.ps1 08-FUNCTIONS/examples/05_stack_overflow.cpp           # deliberate crash (folder 08)
 ```
 
@@ -196,12 +206,14 @@ long fib(long n) { return fib(n-1) + fib(n-2); }   // ⚠️ no base case -> sta
 ```
 
 ### Trap 3 — "stack RAM ke saath badhta hai"
-Nahi. Fixed reservation (Linux 8 MB, Windows 1 MB). 16 GB RAM se koi fark nahi.
+Nahi. Fixed reservation (Linux 8 MB, Windows MSVC 1 MB, MinGW 2 MB). 16 GB RAM se koi fark nahi.
 
 ### Trap 4 — thread stack ko main jaisa maanna
 ```cpp
-std::thread t([]{ char buf[2'000'000]; });   // ⚠️ thread stack chhota ho sakta (Win 1 MB) -> crash
+std::thread t([]{ char buf[2'000'000]; });   // ⚠️ thread stack chhota ho sakta (MSVC 1 MB) -> crash
 ```
+Toolchain badla to limit badli: yahi code MinGW (2 MB) pe borderline, MSVC (1 MB) pe pakka crash, Linux (8 MB)
+pe theek.
 
 ### Trap 5 — `alloca` loop mein
 ```cpp
@@ -214,7 +226,8 @@ for (...) { void* p = alloca(1024); }   // ⚠️ har iteration stack grow, func
 
 | ❌ Galat | ✅ Sahi |
 |---|---|
-| "Stack allocation ka bhi kuch cost hai" | ~1 instruction (`sub rsp, N`) — practically free |
+| "Stack allocation ka bhi kuch cost hai" | Function entry pe ek `sub rsp, N` — loop mein koi instruction nahi |
+| "Windows ka stack 1 MB" | MSVC linker default 1 MB; MinGW `ld` default 2 MB — `objdump -p` se dekho |
 | "Stack utna bada ho sakta jitni RAM" | Fixed limit (MBs). Cross = crash |
 | "Overflow niche wale frame ko corrupt karta" | Apne frame ke locals / return addr (stack smashing) |
 | "Har thread ka stack main jaisa 8 MB" | Platform/config pe depend — aksar chhota |
@@ -241,7 +254,8 @@ for (...) { void* p = alloca(1024); }   // ⚠️ har iteration stack grow, func
    <details><summary>Answer</summary>
 
    Frame ≈ 1024 + overhead ≈ ~1080 bytes → 8 MB / 1080 ≈ ~7700 calls (Linux).
-   Windows (1 MB) pe ~950. Machine pe thoda vary.
+   MinGW (2 MB, GCC 16.2 `-O0`): frame `sub rsp, 0x420` + saved rbp + return address = 1072 bytes →
+   ~1950 calls; naap ke dekha — `1900` print hua, phir crash. MSVC (1 MB) pe ~950.
    </details>
 
 3. **Big local:** `int a[N];` in a function, `a[0]=1; print(&a);` — `N` ko
@@ -249,8 +263,10 @@ for (...) { void* p = alloca(1024); }   // ⚠️ har iteration stack grow, func
 
    <details><summary>Answer</summary>
 
-   Crash ~jab `N * 4` bytes stack limit ke paas (Linux ~8 MB → N ≈ 2M; Windows
-   ~1 MB → N ≈ 250K). Crash pehle write (first touch) pe.
+   Crash ~jab `N * 4` bytes stack limit ke paas (Linux ~8 MB → N ≈ 2M; MinGW ~2 MB → N ≈ 500K; MSVC ~1 MB →
+   N ≈ 250K). MinGW pe naapa: N = 400,000 (1.6 MB) chala, 600,000 (2.4 MB) crash. Windows pe crash function ke
+   prologue mein hi aata hai — `___chkstk_ms` pages ko kram se touch karta hai aur guard page ke paar pahunch
+   jaata hai.
    </details>
 
 4. **Thread stack:** `std::thread` mein ek 900 KB local buffer. Windows pe
@@ -258,9 +274,9 @@ for (...) { void* p = alloca(1024); }   // ⚠️ har iteration stack grow, func
 
    <details><summary>Answer</summary>
 
-   Windows default thread stack 1 MB → 900 KB borderline (frame overhead ke saath
-   crash ho sakta). Linux default 8 MB → theek. Portable code stack pe bade
-   buffers avoid kare.
+   Toolchain pe depend. MinGW (GCC 16.2): `std::thread` exe ka 2 MB reserve leta hai — 900 KB aur 1.5 MB dono
+   chale, 2.5 MB crash (naapa). MSVC default 1 MB → 900 KB borderline (frame overhead ke saath crash ho sakta).
+   Linux default 8 MB → theek. Portable code stack pe bade buffers se bache.
    </details>
 
 5. **`sub rsp` dekho:** ek function `void f(){ int a[100]; a[0]=1; escape(a); }`
@@ -269,8 +285,11 @@ for (...) { void* p = alloca(1024); }   // ⚠️ har iteration stack grow, func
 
    <details><summary>Answer</summary>
 
-   `sub rsp, 416` ya similar — 400 bytes array + 16-byte alignment. Ek hi
-   instruction se poora array "allocate".
+   Linux (SysV) pe ABI ke hisaab se `sub rsp, 408` hona chahiye (400 + 8 alignment, shadow space nahi — is box
+   pe chalaya nahi). **Windows x64 (GCC 16.2) pe dekha: `sub rsp, 440`**
+   = 400 (array) + 32 (shadow space, `escape` ke liye) + 8 (alignment, kyunki `call` ne return address push
+   karke rsp ko 16 ke multiple se 8 hata diya tha). Ek hi instruction se poora array "allocate". (⚠️ `escape` ko
+   usi file mein define karoge to GCC poora function khaali kar dega — alag file mein rakho ya sirf declare karo.)
    </details>
 
 ---

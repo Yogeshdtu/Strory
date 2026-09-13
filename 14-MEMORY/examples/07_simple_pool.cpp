@@ -79,7 +79,6 @@ struct Order {
 };
 
 using Clock = std::chrono::steady_clock;
-static void sink(void* p) { asm volatile("" : : "r"(p) : "memory"); }
 
 int main() {
     std::cout << "=== correctness ===\n";
@@ -109,40 +108,59 @@ int main() {
     std::cout << "  5th allocate on capacity-4 pool -> " << (d5 ? "ptr" : "nullptr (pool full)") << "\n";
     pool.deallocate(d1); pool.deallocate(d2); pool.deallocate(d3); pool.deallocate(d4);
 
-    // ---- benchmark: pool vs new/delete ----
-    std::cout << "\n=== throughput (build with -O2) ===\n";
-    const long REPS = 5'000'000;
+    // ============================================================
+    //  BENCHMARK: pool vs new/delete -- "burst" workload
+    // ============================================================
+    // 64 orders ek saath allocate + construct karo, phir sabko padho + free karo.
+    // Asli feed jaisa: ek packet mein kai orders aate hain, phir chale jaate hain.
+    //
+    // ⚠️ Rule 2 ki kahani: pehle yahan `for (...) { p = allocate(); sink(p); deallocate(p); }`
+    // tha -- har baar WAHI slot lo aur wapas do. `bench` ek local hai jiska address kahin
+    // nahi gaya, isliye GCC 16.2 -O2 ne free_ ko register mein rakh liya aur poora
+    // allocate+deallocate ek `mov [rsi], rdx` ban gaya (assembly mein dekha). Result:
+    // "0.24 ns/op, ~140x" -- ek khaali loop vs asli allocator calls. `asm volatile` sink
+    // memory ko clobber karta hai, par non-escaped local ke register wale free_ ko nahi.
+    // Batch workload mein free list sach mein aage-peeche hoti hai -> asli kaam naapte hain.
+    std::cout << "\n=== throughput: 64 ka burst, alloc+construct -> read+free (-O2 pe build karo) ===\n";
+    constexpr int  BATCH  = 64;
+    constexpr long ROUNDS = 100'000;                // 6.4M alloc+free pairs
+    Order* ptrs[BATCH];
+    std::uint64_t cs1 = 0, cs2 = 0;
 
     FixedPool bench(sizeof(Order), 1024);
     auto t0 = Clock::now();
-    for (long i = 0; i < REPS; ++i) {
-        void* p = bench.allocate();
-        sink(p);
-        bench.deallocate(p);
+    for (long r = 0; r < ROUNDS; ++r) {
+        for (int j = 0; j < BATCH; ++j)                       // pool se lo + placement new
+            ptrs[j] = new (bench.allocate()) Order{static_cast<std::uint64_t>(r + j), 100.0, 10, 'B'};
+        for (int j = 0; j < BATCH; ++j) {                     // padho + pool ko wapas
+            cs1 += ptrs[j]->id;
+            bench.deallocate(ptrs[j]);                        // (Order trivially destructible -- ~Order() no-op)
+        }
     }
     auto t1 = Clock::now();
 
-    auto t2 = Clock::now();
-    for (long i = 0; i < REPS; ++i) {
-        void* p = ::operator new(sizeof(Order));
-        sink(p);
-        ::operator delete(p);
+    for (long r = 0; r < ROUNDS; ++r) {
+        for (int j = 0; j < BATCH; ++j)                       // allocator se lo
+            ptrs[j] = new Order{static_cast<std::uint64_t>(r + j), 100.0, 10, 'B'};
+        for (int j = 0; j < BATCH; ++j) {
+            cs2 += ptrs[j]->id;
+            delete ptrs[j];                                   // allocator ko wapas
+        }
     }
-    auto t3 = Clock::now();
+    auto t2 = Clock::now();
 
-    auto ns = [](Clock::time_point x, Clock::time_point y) {
-        return std::chrono::duration_cast<std::chrono::nanoseconds>(y - x).count();
-    };
-    const double pp = static_cast<double>(ns(t0, t1)) / static_cast<double>(REPS);
-    const double np = static_cast<double>(ns(t2, t3)) / static_cast<double>(REPS);
+    const double pairs = static_cast<double>(ROUNDS) * BATCH;
+    const double pp = std::chrono::duration<double, std::nano>(t1 - t0).count() / pairs;
+    const double np = std::chrono::duration<double, std::nano>(t2 - t1).count() / pairs;
 
-    std::cout << "  pool  alloc+free : " << pp << " ns/op\n";
-    std::cout << "  new   alloc+free : " << np << " ns/op\n";
+    std::cout << "  pool  alloc+free : " << pp << " ns/pair\n";
+    std::cout << "  new   alloc+free : " << np << " ns/pair\n";
     std::cout << "  speedup          : " << (pp > 0 ? np / pp : np) << "x\n";
+    std::cout << "  checksums equal  : " << (cs1 == cs2 ? "yes" : "NO") << "\n";
 
     std::cout <<
         "\n"
-        "  Pool: ek pointer swap. new/delete: allocator ka poora machinery (aur\n"
+        "  Pool: do pointer moves. new/delete: allocator ka poora machinery (aur\n"
         "  kabhi-kabhi lock / OS call -> tail spike). Yeh sirf throughput dikhata hai;\n"
         "  asli jeet TAIL LATENCY hai -- 06_allocation_benchmark.cpp dekho.\n";
     return 0;

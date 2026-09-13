@@ -36,10 +36,22 @@ folder ka naksha hai.
   high address
 ```
 
-⚠️ Yeh **classic Linux** picture hai. Windows (PE) pe segments ka aapsi order
-thoda alag ho sakta hai, aur heap/stack ka relative position bhi
-([`examples/01_memory_layout.cpp`](examples/01_memory_layout.cpp) run karke
-apni machine pe dekho). **Concept** har jagah sach hai:
+⚠️ Yeh **classic Linux** picture hai. Windows (PE) pe order sach mein alag hai — is course ki machine pe
+[`examples/01_memory_layout.cpp`](examples/01_memory_layout.cpp) (GCC 16.2, Windows x64) ne yeh dikhaya:
+
+```
+  low address
+    stack    0x0000_00c2_b37f_faec   <- SABSE NEECHE (Linux ke ulat)
+    heap     0x0000_02a2_f3e2_6500
+    .text    0x0000_7ff6_6011_1760   <- image sabse upar
+    .data    0x0000_7ff6_6011_4010
+    .rdata   0x0000_7ff6_6011_5050   (Windows ka .rodata; yahan .data ke BAAD)
+    .bss     0x0000_7ff6_6011_9080
+  high address
+```
+
+Heap ke do lagataar `new int` ka order bhi fixed nahi — ek run mein #2 upar mila, doosre mein neeche. **Concept**
+har jagah sach hai:
 
 1. Code + constants → ek **read-only** region (likhne ki koshish = crash).
 2. Globals/statics → ek **fixed-size read-write** region (program ke shuru se
@@ -107,8 +119,8 @@ jaata hai aur file mein **poore 4 MB** leta hai.
 | | Stack | Heap |
 |---|---|---|
 | Kaun manage karta | compiler (automatic) | **aap** (`new`/`delete`) ya library (`vector`) |
-| "Allocate" cost | ~0 (ek register move) | allocator ka kaam (file 08 — ~50-100+ ns, tail bahut bada) |
-| Size | chhota (~1-8 MB, `ulimit`) | bada (GBs, RAM tak) |
+| "Allocate" cost | ~0 (function entry pe ek `sub rsp`) | allocator ka kaam (file 08 — median ~30 ns yahan, tail µs tak) |
+| Size | chhota (Linux 8 MB, MSVC 1 MB, MinGW 2 MB — file 02) | bada (GBs, RAM tak) |
 | Lifetime | scope-bound (automatic) | aap decide karo (manual = leak/UAF ka risk) |
 | Fragmentation | nahi | haan (file 09) |
 | Access speed | fast (hot, cache mein) | pointer chase — cache miss ho sakta |
@@ -131,7 +143,11 @@ ho (stack overflow risk — file 02).
 - **Stack pages lazily map hoti hain.** Frame `rsp` ko ghata ke banta hai; naya
   page pehli baar touch pe fault → map. Guard page cross karo → stack overflow
   → SIGSEGV (file 02).
-- **ASLR** har region ka base randomize karta hai → addresses har run pe alag.
+- **ASLR** region ke base randomize karta hai. Linux pe har run pe sab badalta hai. **Windows pe exe ka image
+  base boot pe ek baar randomize hota hai** — is machine pe 3 lagataar runs mein `.text`/`.data`/`.bss` ke
+  addresses **bilkul same** rahe (`0x7ff660111760`), jabki heap aur stack har run pe badle.
+- **Windows pe `.rodata` likhna** = access violation (`0xC0000005`); Git-Bash `Segmentation fault` (exit 139)
+  dikhata hai — `-O0` aur `-O2` dono pe naapa.
 
 > **HFT relevance:** memory-region awareness latency ka foundation hai. Hot data
 > ko aise rakha jaata hai ki woh **ek known, pre-faulted, cache-resident** region
@@ -194,6 +210,8 @@ int* f() { int x = 1; return &x; }   // ⚠️ x stack pe, frame return pe gaya 
 | "`.bss` array file ko bada karta hai" | Sirf ek "N zero bytes chahiye" note — demand-zero |
 | "String literal `char[]` hai, modifiable" | `.rodata`, read-only — likhna UB/crash |
 | "Stack aur heap same cheez hain, bas naam alag" | Alag regions, alag manager, alag cost/lifetime/limits |
+| "Stack hamesha sabse upar (high address) hota hai" | Classic Linux picture; Windows pe naapa — stack sabse neeche, image sabse upar |
+| "ASLR se har run pe saare addresses badalte hain" | Windows pe exe image boot-time randomize — runs ke beech same |
 
 ---
 
@@ -215,8 +233,10 @@ int* f() { int x = 1; return &x; }   // ⚠️ x stack pe, frame return pe gaya 
 
    <details><summary>Answer</summary>
 
-   Ek run ke andar: segments fixed. Do runs ke beech: ASLR sab base randomize
-   karta hai → sab addresses badalte (par relative order aksar same).
+   Ek run ke andar: segments fixed. Do runs ke beech: Linux pe ASLR sab base randomize karta hai → sab
+   addresses badalte (relative order aksar same). **Windows pe naapa (3 runs):** image ke addresses
+   (`.text`, `.data`, `.rdata`, `.bss`) **same** rahe — image base boot pe randomize hota hai, har run pe nahi;
+   heap aur stack har run badle.
    </details>
 
 3. **`.bss` vs `.data` size:** do programs — `int a[1000000];` vs
@@ -226,7 +246,8 @@ int* f() { int x = 1; return &x; }   // ⚠️ x stack pe, frame return pe gaya 
    <details><summary>Answer</summary>
 
    Pehla `.bss` → binary ~4 MB chhota. Doosra `.data` → binary mein poore 4 MB
-   (non-zero initializer ke kaaran har element file mein).
+   (non-zero initializer ke kaaran har element file mein). MinGW pe naapa: `.bss` wala exe **60 KB**, `.data`
+   wala **4.06 MB**.
    </details>
 
 4. **Write to `.rodata`:** `char* p = (char*)"x"; p[0] = 'y';` compile karo

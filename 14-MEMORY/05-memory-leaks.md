@@ -107,6 +107,13 @@ void* operator new[](std::size_t n) { return ::operator new(n); }   // MinGW: al
 
 Measured output: `LEAK: 1006 block(s) never freed  (~1024284 bytes)`.
 
+**`operator new[]` alag se kyun?** Standard kehta hai default `operator new[]` aapke replace kiye `operator new`
+ko bulaye. Linux pe aisa hi hota hai. Par MinGW pe default `operator new[]` `libstdc++-6.dll` ke **andar** hai,
+aur Windows DLL ke andar ki call exe mein replace kiye function tak nahi pahunchti. GCC 16.2 pe naapa: sirf
+`operator new` replace karke `new double[128]` → normal build mein count **0**, `-static` build mein **1**. Isi
+wajah se library ke andar hone wali allocations (jaise `std::pmr::new_delete_resource`) bhi DLL build mein nahi
+gini jaati (file 10, exercise 4).
+
 Windows pe aur options: Visual Studio `_CrtDumpMemoryLeaks` (MSVC CRT),
 Dr. Memory, Application Verifier.
 

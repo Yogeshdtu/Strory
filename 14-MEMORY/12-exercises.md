@@ -55,7 +55,14 @@ int* p = new int[5]{1, 2, 3};
 std::cout << p[0] << p[3] << p[4];
 delete p;            // note: no []
 ```
-<details><summary>Answer</summary>`100` print (1, 0, 0 → `1` `0` `0`). Phir `delete p` (bina `[]`) = **UB** — should be `delete[] p`. Aksar crash / heap corruption.</details>
+<details><summary>Answer</summary>
+
+`100` print (1, 0, 0 → `1` `0` `0`). Phir `delete p` (bina `[]`) = **UB** — `delete[] p` hona chahiye. GCC 16.2
+`-Wall` warn karta hai: `'void operator delete(void*, std::size_t)' called on pointer returned from a mismatched
+allocation function [-Wmismatched-new-delete]`. Chala ke dekha (MinGW, `-O0`/`-O2`): program **chupchaap chalta
+raha**, agla `new` bhi theek — `int` trivially destructible hai, koi array cookie nahi. Yahi UB ka khatra hai:
+"chal gaya" — jab tak type badle (destructor wala `T`) ya allocator badle. Warning ko error maano.
+</details>
 
 ### B3
 ```cpp
@@ -72,7 +79,12 @@ delete p;
 std::cout << *q;
 delete q;
 ```
-<details><summary>Answer</summary>`*q` → UAF read (aksar `42` ya garbage). `delete q` → **double-free** (`q == p`, already freed) → allocator corruption / abort.</details>
+<details><summary>Answer</summary>
+
+`*q` → UAF read (`42` ya garbage). `delete q` → **double-free** (`q == p`, already freed) → allocator corruption /
+abort. MinGW/UCRT pe chala ke: read ne garbage (`1901856496`) diya, aur doosra `delete` pe program exit code
+`0xC0000374` (`STATUS_HEAP_CORRUPTION`) ke saath wahin khatam.
+</details>
 
 ### B5
 ```cpp
@@ -89,7 +101,7 @@ std::vector<int> v;
 for (int i = 0; i < 1000; ++i) v.push_back(i);
 // approx kitni heap allocations hui?
 ```
-<details><summary>Answer</summary>~10 (2x growth: 1,2,4,...,1024 → ~10 reallocs, har ek `operator new` + copy + `delete`). `v.reserve(1000)` → 1 allocation, 0 copies.</details>
+<details><summary>Answer</summary>**11** (GCC 16.2 pe counted `operator new` se gine) — 2x growth: capacity 1, 2, 4, ..., 1024 = 11 allocations, har grow pe copy + purana `delete`. `v.reserve(1000)` → 1 allocation, 0 copies.</details>
 
 ### B7
 ```cpp
@@ -108,7 +120,7 @@ int arr[3] = {1, 2, 3};
 int* p = arr;
 delete p;            // ?
 ```
-<details><summary>Answer</summary>**UB** — `arr` stack pe hai, `new` se nahi aaya. `delete` on non-heap / non-`new` pointer = undefined (crash / corruption).</details>
+<details><summary>Answer</summary>**UB** — `arr` stack pe hai, `new` se nahi aaya. `delete` on non-heap / non-`new` pointer = undefined (crash / corruption). MinGW/UCRT pe chala ke: `delete` ke andar hi exit code `0xC0000374` (heap corruption detected).</details>
 
 ---
 
@@ -219,7 +231,8 @@ new` se ratio.
 ### D5 — fixed pool + placement new
 `07_simple_pool.cpp` ke `FixedPool` pe `Order` objects: `allocate` → placement
 `new` → use → `~Order()` → `deallocate`. 1e6 loop, per-op ns vs `new`/`delete`.
-Pool-full pe graceful `nullptr`.
+Pool-full pe graceful `nullptr`. ⚠️ Ek hi slot le-ke-turant-do wala loop compiler ek `mov` bana deta hai —
+burst (64 lo, sab chhuo, sab do) naapo aur assembly dekho (file 08 ki kahani; is machine pe ~21x).
 
 ### D6 — allocation latency histogram
 `06_allocation_benchmark.cpp` ko extend: raw `new` ke 500k samples ka ek ASCII
@@ -230,9 +243,9 @@ Tail buckets ka count dikhao.
 
 ## PART E — HFT angle
 
-1. **Wire-to-order budget:** ek order ka total budget ~500 ns hai. `06`
-   benchmark se `new` ka p50 (~50 ns) aur p99.9 (~500 ns) — ek allocation is
-   budget ka kitna % kha jaata (p50 case, p99.9 case)?
+1. **Wire-to-order budget:** ek order ka total budget ~500 ns hai. `06` benchmark se is machine pe `new` ka p50
+   **30 ns** aur p99.9 **110–430 ns**, max **7–109 µs** (file 08) — ek allocation is budget ka kitna % kha jaata
+   (p50 case, p99.9 case, max case)? Apni machine ke numbers se dobara karo.
 
 2. **Zero-alloc audit:** ek hot-path function jo `std::string`, `std::vector`,
    `std::map` use karta hai — har ek kaunsi hidden allocation la sakta? Kaise

@@ -124,19 +124,20 @@ servers, aur HFT aksar swap karte hain:
 
 - `malloc` aapko ek **virtual** address deta hai. Physical RAM tab milti hai jab
   aap us page ko **pehli baar touch** karo → **page fault** → OS ek physical
-  page map karta hai (aur usually zero karta) → ~1-10 µs. Yeh "first touch" cost
-  allocation ke number mein nahi dikhta par uske turant baad aata hai (file 08).
+  page map karta hai (aur zero karta) → har page pe sub-µs se kuch µs (is Windows machine pe naapa: 64 MB
+  ka pehla `memset` doosre se ~4–7 ms zyada — 16,384 pages → ~0.3–0.4 µs/page). Yeh "first touch" cost
+  allocation ke number mein nahi dikhta par uske turant baad aata hai (file 08, exercise 5).
 - `mmap`-backed badi allocations `free` pe `munmap` → next same-size alloc phir
   se page-fault karega. Isliye bade buffers ko **reuse** karo, baar-baar
   alloc/free nahi.
 - **`calloc`** OS se aayi fresh pages (already zero) ke liye memset skip kar
   sakta — bade zeroed buffers ke liye `malloc + memset` se tez.
-- **THP / huge pages** (2 MB) — kam TLB misses bade working sets pe (folder 34).
+- **THP / huge pages** (2 MB) — kam TLB misses bade working sets pe (folder 29 file 12, folder 32 file 11).
 
-> **HFT relevance:** default `malloc` ka fast path (tcache hit) ~20-50 ns hai —
-> par woh path miss ho sakta hai: arena lock contention (multi-thread), bin
-> search, `brk`/`mmap` syscall, first-touch page faults. Yeh sab **tail latency**
-> banate hain (file 08 measured: p99.9 500 ns, max milliseconds). Isliye hot
+> **HFT relevance:** default `malloc` ka fast path (glibc pe tcache hit) tens of ns hai — is repo ke Windows
+> UCRT heap pe p50 30 ns naapa (file 08) — par woh path miss ho sakta hai: heap/arena lock contention
+> (multi-thread), bin search, `brk`/`mmap`/`VirtualAlloc` syscall, first-touch page faults. Yeh sab **tail
+> latency** banate hain (file 08 naapa: p99.9 110–430 ns, max 7–109 µs). Isliye hot
 > path pe allocation hoti hi nahi — sab kuch pehle se allocate, phir pool/arena
 > se O(1) reuse. Allocator choice (jemalloc/mimalloc) startup aur non-hot paths
 > ke liye matter karta hai.
@@ -146,7 +147,7 @@ servers, aur HFT aksar swap karte hain:
 ## Hands-on
 
 ```bash
-./build.ps1 fast 14-MEMORY/examples/02_stack_vs_heap.cpp        # stack vs heap ~83x
+./build.ps1 fast 14-MEMORY/examples/02_stack_vs_heap.cpp        # heap ~37 ns/iter vs stack <1 ns
 ./build.ps1 fast 14-MEMORY/examples/06_allocation_benchmark.cpp # allocator ka tail dekho
 ```
 
@@ -203,8 +204,9 @@ int* q = new int;                    free(q);     // ⚠️ UB
 
    <details><summary>Answer</summary>
 
-   p50 ~50 ns (tcache hit — fast path), max ~100 µs (slow path: bin search /
-   syscall / fault). ~2000x spread — allocation "constant cost" nahi hai.
+   Is machine pe (GCC 16.2 `-O2`, Windows UCRT heap): p50 **30 ns** (fast path — us mein ~10 ns rdtsc ka apna
+   cost), max **7.5–25 µs** (slow path: free-list miss / lock / OS se memory / fault). ~250–800x spread;
+   scenario B (retain) mein max 67–109 µs. Allocation "constant cost" nahi hai.
    </details>
 
 2. **Header overhead:** 1,000,000 baar `malloc(1)` (free mat karo) — process RSS
@@ -212,8 +214,9 @@ int* q = new int;                    free(q);     // ⚠️ UB
 
    <details><summary>Answer</summary>
 
-   ~16-32 MB — har allocation ka header + min chunk size + alignment. `malloc(1)`
-   practically 16-32 bytes consume karta.
+   Linux/glibc: ~32 MB (minimum chunk 32 bytes — glibc ke niyam, is box pe chalaya nahi). Windows pe
+   (`GetProcessMemoryInfo` → `PrivateUsage`, GCC 16.2, UCRT heap) naapa: **+17.2 MB → ~18 bytes per
+   `malloc(1)`**. Dono jagah 1 byte maango, 16–32 bytes jaate hain — header + minimum block + alignment.
    </details>
 
 3. **mmap threshold:** `malloc(100000)` vs `malloc(200000)` (glibc,
@@ -231,10 +234,14 @@ int* q = new int;                    free(q);     // ⚠️ UB
 
    <details><summary>Answer</summary>
 
-   Fresh `mmap` pages OS se already-zero aati hain; `calloc` jaanta hai to
-   `memset` skip karta. `malloc+memset` explicitly poori 64 MB likhta (aur har
-   page fault karta). `calloc` first-touch pe hi fault karega, par redundant
-   memset bachta.
+   Fresh pages OS se already-zero aati hain (`mmap` Linux pe, `VirtualAlloc` Windows pe); `calloc` jaanta hai
+   to `memset` skip karta. `malloc+memset` explicitly poori 64 MB likhta (aur har page fault karta). `calloc`
+   first-touch pe hi fault karega, par redundant memset bachta.
+
+   Windows UCRT pe naapa (3 runs × 2, har page ek baar padh ke): `malloc`+`memset`+touch **7.0–11.1 ms**,
+   `calloc`+touch **4.9–6.5 ms**, aur `calloc` akela **13–37 µs** — yaani calloc ne 64 MB zero nahi kiye,
+   sirf maange. ⚠️ `malloc`/`memset` ko `[[gnu::noipa]]` helpers mein rakho, warna GCC unused buffer elide kar
+   dega.
    </details>
 
 5. **Override hook:** ek chhota program jisme global `operator new`/`delete`
@@ -245,6 +252,9 @@ int* q = new int;                    free(q);     // ⚠️ UB
 
    `std::string` (SSO se lambi) → 1. `std::vector<int> v(100)` → 1 (400 bytes).
    Chhoti string (SSO) → 0. Exact count libstdc++ pe depend, par pattern yahi.
+   ⚠️ MinGW pe: `std::string`/`std::vector` template code exe mein banta hai, isliye gine jaate hain; par
+   `libstdc++-6.dll` ke andar hone wali allocations (jaise default `operator new[]`) exe ka override nahi dekhta —
+   `-static` se link karke gino (file 05).
    </details>
 
 ---

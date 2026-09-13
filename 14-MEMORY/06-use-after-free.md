@@ -66,8 +66,10 @@ delete w;              // ⚠️ double-free -- ownership confusion
 
 Effect: allocator ka internal state toot-ta hai → **agli** allocation crash
 karti hai (ya, exploited, arbitrary write). glibc aksar `free(): double free
-detected in tcache 2` ke saath abort karta hai; MinGW pe silent corruption ya
-crash.
+detected in tcache 2` ke saath abort karta hai. MinGW/UCRT (Windows heap) pe naapa (GCC 16.2, `-O0` aur `-O2`,
+3/3 runs): **doosra `delete` wahin program khatam** — exit code `0xC0000374` (`STATUS_HEAP_CORRUPTION`), koi
+message nahi (Git-Bash exit 127 dikhata hai). Is simple case mein heap ne pakad liya; zyada ulajhe cases (beech
+mein doosri allocations) mein detection ki guarantee nahi.
 
 ---
 

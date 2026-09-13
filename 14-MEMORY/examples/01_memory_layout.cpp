@@ -51,10 +51,11 @@ int main() {
     std::cout << "  &s_local (.data)         : " << U(&s_local) << "\n";
     std::cout << "  &g_zero (.bss)           : " << U(&g_zero) << "\n";
 
-    std::cout << "\n=== heap (grows up) ===\n";
+    // heap ka "direction" allocator pe depend: Windows UCRT pe #2 kabhi upar, kabhi neeche mila
+    std::cout << "\n=== heap (classic Linux picture: grows up; allocator pe depend) ===\n";
     int* heap2 = new int(10);
     std::cout << "  new int #1               : " << U(heap)  << "\n";
-    std::cout << "  new int #2               : " << U(heap2) << "   (usually > #1)\n";
+    std::cout << "  new int #2               : " << U(heap2) << "   (> #1 ho zaroori nahi)\n";
 
     std::cout << "\n=== stack (grows down) ===\n";
     int local2 = 2;

@@ -39,8 +39,9 @@ g++ -std=c++20 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer prog.
 Kya deta hai (har error pe abort + report):
 - **heap-use-after-free** — use ka stack, "freed by" stack, "allocated by" stack.
 - **heap-buffer-overflow** — kis allocation ke kitne bytes aage/peeche.
-- **stack-buffer-overflow**, **stack-use-after-return** (`ASAN_OPTIONS=detect_stack_use_after_return=1`,
-  ab default), **stack-use-after-scope**.
+- **stack-buffer-overflow**, **stack-use-after-return** (`ASAN_OPTIONS=detect_stack_use_after_return=1` —
+  default on hai ya nahi, compiler/runtime version pe depend; pakka karne ke liye khud set karo),
+  **stack-use-after-scope**.
 - **global-buffer-overflow**.
 - **double-free / invalid-free / alloc-dealloc-mismatch** (`new[]` vs `delete`).
 - **memory leaks** (LSan built-in on Linux, exit pe).
@@ -79,9 +80,9 @@ valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./prog
   uninitialized read + origin. Requires **poori dependency chain** (libc++
   included) instrumented — isliye setup mushkil, par sabse precise.
 - **Valgrind** — no rebuild, catches most, `--track-origins`.
-- **`-ftrivial-auto-var-init=pattern`** (GCC/Clang) — uninitialized locals ko
-  `0xAA...` se fill → bug deterministic (crash/wrong value consistently), aur
-  security hardening. Production mein `=zero` bhi (chhota cost).
+- **`-ftrivial-auto-var-init=pattern`** (GCC 12+/Clang) — uninitialized locals ko ek pattern se bharta hai →
+  bug deterministic (har run wahi galat value), aur security hardening. Pattern compiler pe depend: **GCC 16.2
+  pe naapa `0xFEFEFEFE`**; Clang `0xAA...` use karta hai. Production mein `=zero` bhi (chhota cost).
 - Compiler: `-Wmaybe-uninitialized` / `-Wuninitialized` (`-Wall -O2`) — static,
   simple cases.
 
@@ -179,8 +180,8 @@ g++ -std=c++20 -fsanitize=address,undefined -g 14-MEMORY/examples/05_use_after_f
 valgrind --leak-check=full ./leak
 ```
 
-Compare karo: counted-new sirf "6 blocks leaked" kehta; ASan/Valgrind **kahan
-allocate hue** (stack trace) bhi.
+Compare karo: counted-new sirf `LEAK: 1006 block(s) never freed` kehta; ASan/Valgrind **kahan allocate hue**
+(stack trace) bhi.
 
 ---
 
@@ -212,7 +213,9 @@ Link fail. Is repo pe `./build.ps1 san` fallback, ya WSL.
 | "Valgrind aur ASan same cheez" | Valgrind: no rebuild, uninit, 10-30x. ASan: rebuild, faster, no uninit |
 | "Sanitizer production mein rakh do" | Overhead + RAM + surface — dev/CI only |
 | "MinGW pe ASan `-fsanitize` se chal jaayega" | libasan nahi — link fail. WSL/Dr. Memory |
-| "heaptrack bhi bug-finder hai" | Woh allocation *profiler* — cost, count, timeline (not correctness) |
+| "heaptrack bhi bug-finder hai" | Woh allocation *profiler* — cost, count, timeline (correctness nahi) |
+| "`=pattern` hamesha `0xAA...` bharta hai" | Compiler pe depend — GCC `0xFE...`, Clang `0xAA...` |
+| "MinGW pe counted `operator new` sab allocations ginta hai" | DLL (`libstdc++-6.dll`) ke andar ki nahi — file 05 |
 
 ---
 
@@ -254,9 +257,12 @@ Link fail. Is repo pe `./build.ps1 san` fallback, ya WSL.
 
    <details><summary>Answer</summary>
 
-   Normal: garbage (jo bhi stack pe tha). `=pattern`: `x` = `0xAAAAAAAA`
-   consistently → bug deterministic (same wrong value har run) + koi stale
-   secret leak nahi (security). `=zero` production mein chhote cost pe.
+   GCC 16.2 `-O2` pe chala ke (har call se pehle stack ko junk se bhar ke, 3 baar):
+   - Normal: `0x00000000` — "garbage" nahi, compiler ne UB ke saath jo chaha kiya. Kisi aur function/flag pe
+     kuch aur aayega. `-Wall` ne `'x' is used uninitialized` warn kiya.
+   - `=pattern`: **`0xFEFEFEFE`** har baar (Clang pe `0xAAAAAAAA` hota) → bug deterministic + stack ka
+     purana secret leak nahi (security).
+   - `=zero`: `0x00000000` — production hardening, chhote cost pe.
    </details>
 
 5. **Soak test:** ek program jo 1e7 baar ek function call kare jo (buggy) 100
