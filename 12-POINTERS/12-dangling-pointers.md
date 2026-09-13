@@ -21,9 +21,16 @@ int* danglingLocal() {
     return &x;              // ⚠️ return ke baad x ka stack frame khatam
 }
 int* p = danglingLocal();
-*p;                         // ⚠️ UB -- reuse ho chuki stack slot padh rahe ho
+*p;                         // ⚠️ UB
 ```
-Is khaas case ko `-Wreturn-local-addr` pakad leta hai.
+Is khaas case ko `-Wreturn-local-addr` pakad leta hai. Aur ⚠️ GCC 16.2 isse aage jaata hai: `return &x;` ko
+**`return nullptr;`** bana deta hai, `-O0` pe bhi (assembly mein `mov eax, 0`). To `*p` "purani value" nahi
+deta — seedha null-deref crash (Segmentation fault, exit 139). Doosra compiler shayad stale value de. Dono UB
+ke "results" hain — kaunsa milega, compiler tay karta hai.
+
+Wahi galti out-parameter se ho (`void f(int*& out) { int x = 42; out = &x; }`) to GCC address null nahi karta
+(sirf `-Wdangling-pointer` warning) — tab `*out` asli reuse ho chuki stack slot padhta hai: is machine pe `-O0`
+pe 42 ki jagah `32758`, `-O2` pe `0`.
 
 ### 2. Pointer apne block scope se zyada jee gaya
 ```cpp
@@ -140,16 +147,25 @@ lagao; folder 09 file 11.)
 
 ## Hands-on
 
-`examples/06_dangling_pointer.cpp` — 4 dangling patterns (use-after-return,
-use-after-free, vector realloc, scope end) + unke fixes. Yeh 2 intentional
-warnings ke saath compile hoti hai; chalao aur stale values dekho / (Linux +
-ASan pe) exact reports:
+`examples/06_dangling_pointer.cpp` — dangling patterns (use-after-return — `return &x` aur out-parameter
+dono, use-after-free, vector realloc, scope end) + unke fixes. Yeh 3 intentional warnings ke saath compile
+hoti hai (`-Wreturn-local-addr`, 2× `-Wdangling-pointer`); chalao aur stale values dekho / (Linux + ASan pe)
+exact reports.
+
+`write` argument do to BUG 2 free memory mein **likhta** bhi hai. GCC 16.2 / MinGW `-O0` pe naapa (5/5 baar):
+us line pe kuch nahi hota — crash **aage**, BUG 3 ke `vector` allocation mein aata hai (Segmentation fault,
+exit 139). Heap ki free-list corrupt hui thi; nuksaan agle `new` pe dikha. "Der se, door kahin" wala bug,
+live. `-O2` pe GCC us dead store ko hata deta hai aur crash gayab.
 
 ```bash
 ./build.ps1 12-POINTERS/examples/06_dangling_pointer.cpp
+# ya haath se: g++ -std=c++20 -O0 -g 06_dangling_pointer.cpp -o dp && ./dp && ./dp write
 # asli diagnosis ke liye Linux/WSL:
-# g++ -std=c++20 -fsanitize=address,undefined -g 06_dangling_pointer.cpp -o dp && ./dp
+# g++ -std=c++20 -fsanitize=address,undefined -g 06_dangling_pointer.cpp -o dp && ./dp write
 ```
+
+(Pehle is file ka BUG 1 `*danglingLocal()` padhta tha — GCC 16.2 pe woh nullptr tha, program wahin crash
+hota tha aur baaki bugs kabhi chalte hi nahi the. Ab BUG 1 sirf pointer ki value print karta hai.)
 
 ---
 
@@ -186,6 +202,8 @@ badla nahi ki toot gaya.
 | ❌ Galat | ✅ Sahi |
 |---|---|
 | "Dangling deref kabhi-kabhi sahi value deta hai" | UB — value kismat se aati hai; write memory corrupt karta hai |
+| "`return &local` bas purani value dega" | GCC 16.2 ise `nullptr` bana deta hai → pakka crash; UB ka result compiler tay karta hai |
+| "Free memory mein write wahin crash karega" | MinGW `-O0` pe crash baad ke `new` mein aaya; `-O2` pe bilkul nahi |
 | "`delete` ke baad pointer null ho jaata hai" | Woh waisa hi rehta hai — `nullptr` khud set karo |
 | "Dangling pointer se sirf reads bure hain" | Writes zyada bure — kahin bhi corruption |
 | "`push_back` purane elements ko nahi hilata" | Capacity bharne pe woh realloc karta hai |
@@ -195,11 +213,23 @@ badla nahi ki toot gaya.
 
 ## Exercises
 
-1. **Use-after-return:** `06_dangling_pointer.cpp` ka BUG 1 chalao. `*p1` kya
-   print karta hai? Function dobara call karo — `*p1` badla?
+1. **Use-after-return:** `06_dangling_pointer.cpp` ke BUG 1 aur 1b chalao. `p1` ki value kya hai? `*p1b` kya
+   print karta hai — 42? Function dobara call karo — badla? `-O0` vs `-O2`?
+   <details><summary>Answer (GCC 16.2, MinGW)</summary>
 
-2. **UAF write:** `int* p = new int(1); delete p; *p = 999;` — `-O0` pe chalao.
-   Crash hua? Ab Linux pe `-fsanitize=address` se — report kya kehti hai?
+   `p1` = **0** — GCC ne `return &x` ko `return nullptr` bana diya (dono `-O0`/`-O2`); `*p1` karte to crash.
+   `*p1b` (out-parameter wala) `-O0` pe `32758`, `-O2` pe `0` — 42 kabhi nahi, kyunki `std::cout` ki call ne
+   wahi stack slot reuse kar liya. Ek hi galti, compiler/flags ke hisaab se crash ya garbage.
+   </details>
+
+2. **UAF write:** `./dp write` chalao (`-O0`). Crash kis line pe hua — `*p2 = 7` pe ya kahin aur? `-O2` pe? Ab
+   Linux pe `-fsanitize=address` se — report kya kehti hai?
+   <details><summary>Answer (MinGW `-O0`)</summary>
+
+   `*p2 = 7` pe kuch nahi hua; crash BUG 3 ke `vector` allocation mein (exit 139) — heap free-list corrupt thi.
+   `-O2` pe koi crash nahi (GCC ne delete ke baad wala dead store hata diya). ASan seedha `*p2 = 7` wali line pe
+   `heap-use-after-free` report karta.
+   </details>
 
 3. **Vector realloc:** `std::vector<int> v{1}; int* p = &v[0]; for (int i=0;i<100;
    ++i) v.push_back(i); std::cout << *p;` — value kya? Do tareeke se fix karo

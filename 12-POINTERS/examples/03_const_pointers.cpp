@@ -24,8 +24,8 @@ int main() {
     std::cout << "===== 1. const int* p  (data locked) =====\n";
     const int* p1 = &a;
     std::cout << "  *p1 = " << *p1 << "\n";
-    // *p1 = 99;          // ❌ ERROR -- can't modify the pointed-to value THROUGH p1
-    p1 = &b;             // ✅ OK -- pointer can re-point
+    // *p1 = 99;          // ❌ ERROR -- p1 ke THROUGH pointed value badal nahi sakte
+    p1 = &b;             // ✅ OK -- pointer doosri jagah point kar sakta hai
     std::cout << "  p1 = &b;  *p1 = " << *p1 << "   (re-pointing allowed)\n";
     std::cout << "  (a is still modifiable directly: a = 11; -- p1 just can't do it)\n";
     a = 11;
@@ -35,11 +35,11 @@ int main() {
     //  2. int* const  --  "const pointer to int"  (pointer locked)
     // ============================================================
     std::cout << "\n===== 2. int* const p  (pointer locked) =====\n";
-    int* const p2 = &a;              // MUST init here (can't re-point later)
+    int* const p2 = &a;              // yahin init ZAROORI (baad mein re-point nahi ho sakta)
     std::cout << "  *p2 = " << *p2 << "\n";
-    *p2 = 100;                       // ✅ OK -- can modify the value
+    *p2 = 100;                       // ✅ OK -- value badal sakte ho
     std::cout << "  *p2 = 100;  ->  a = " << a << "\n";
-    // p2 = &b;          // ❌ ERROR -- can't re-point
+    // p2 = &b;          // ❌ ERROR -- re-point nahi kar sakte
 
     // ============================================================
     //  3. const int* const  --  both locked
@@ -51,7 +51,7 @@ int main() {
     // p3 = &b;   // ❌
 
     // ============================================================
-    //  4. Read complex declarations right-to-left
+    //  4. Ulajhe declarations DAAYE se BAAYE padho
     // ============================================================
     std::cout << "\n===== 4. reading declarations =====\n";
     std::cout <<
@@ -62,7 +62,8 @@ int main() {
         "  const int** p       -> pointer to (pointer to const int)\n";
 
     // ============================================================
-    //  5. Why it matters -- function parameters
+    //  5. Yeh kyun matter karta hai -- function parameters
+    //     (signature ka const ek VAADA hai jo compiler nibhwata hai)
     // ============================================================
     std::cout << "\n===== 5. const-correctness in APIs =====\n";
     std::cout <<

@@ -33,7 +33,7 @@ void swapByReference(int& a, int& b) {
 
 int main() {
     // ============================================================
-    //  1. by value -- FAILS to swap
+    //  1. by value -- swap NAHI hota (copies badli, originals nahi)
     // ============================================================
     std::cout << "===== 1. swapByValue (broken) =====\n";
     int x = 1, y = 2;
@@ -58,7 +58,7 @@ int main() {
     std::cout << "  after swapByReference(x, y): x=" << x << " y=" << y << "   ✅\n";
 
     // ============================================================
-    //  4. std::swap -- just use this
+    //  4. std::swap -- asli code mein bas yahi use karo
     // ============================================================
     std::cout << "\n===== 4. std::swap =====\n";
     x = 1; y = 2;

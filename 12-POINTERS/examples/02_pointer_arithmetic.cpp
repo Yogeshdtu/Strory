@@ -34,16 +34,16 @@ int main() {
                   << "   *(arr + " << i << ") = " << *(arr + i) << "\n";
 
     // ============================================================
-    //  3. Traversal with a moving pointer
+    //  3. Chalte hue pointer se poora array ghoomo
     // ============================================================
     std::cout << "\n===== 3. pointer walk =====\n";
     std::cout << "  ";
-    for (int* it = arr; it != arr + 5; ++it)   // arr + 5 = "one past the end" (valid to COMPARE, not deref)
+    for (int* it = arr; it != arr + 5; ++it)   // arr + 5 = "one past the end" (COMPARE kar sakte ho, deref nahi)
         std::cout << *it << " ";
     std::cout << "\n";
 
     // ============================================================
-    //  4. Pointer difference -> number of elements between
+    //  4. Pointer ka ghatav -> beech mein kitne elements
     // ============================================================
     std::cout << "\n===== 4. pointer subtraction =====\n";
     int* start = &arr[1];
@@ -52,12 +52,12 @@ int main() {
     std::cout << "  &arr[4] - &arr[1] = " << n << "   (elements, NOT bytes)\n";
 
     // ============================================================
-    //  5. ++ / -- / += on pointers
+    //  5. Pointers pe ++ / -- / +=
     // ============================================================
     std::cout << "\n===== 5. ++ / += =====\n";
     int* q = arr;
     std::cout << "  *q        = " << *q << "\n";
-    ++q;                                   // next element
+    ++q;                                   // agla element (address + 4 bytes)
     std::cout << "  ++q; *q   = " << *q << "\n";
     q += 2;
     std::cout << "  q += 2; *q= " << *q << "\n";
@@ -74,7 +74,7 @@ int main() {
     std::cout << "  *(arr + 5)    -> ⚠️ UB (deref of one-past-end)\n";
     std::cout << "  Pointer arithmetic sirf EK array ke andar defined hai.\n";
 
-    // char* -- byte-level arithmetic
+    // char* -- byte-level arithmetic (char* kisi bhi object ke bytes padh sakta hai -- aliasing ka exception)
     std::cout << "\n===== 7. char* = byte stepping =====\n";
     const char* bytes = reinterpret_cast<const char*>(arr);
     std::cout << "  arr ke pehle 8 bytes: ";

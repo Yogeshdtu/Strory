@@ -1,6 +1,6 @@
 // 04_pointers_structs.cpp
 // ============================================================
-// Pointers to structs -- the -> operator
+// Struct ke pointers -- -> operator
 // ============================================================
 //   g++ -std=c++20 -Wall -Wextra -Wshadow -g 04_pointers_structs.cpp -o ps && ./ps
 // ============================================================
@@ -38,7 +38,7 @@ int main() {
     Order ord{1001, "AAPL", 192.34, 100};
 
     // ============================================================
-    //  1. Pointer to struct, -> access
+    //  1. Struct ka pointer, -> se access
     // ============================================================
     std::cout << "===== 1. -> operator =====\n";
     Order* p = &ord;
@@ -46,12 +46,12 @@ int main() {
     std::cout << "  (*p).price = " << (*p).price << "   <- same as p->price\n";
     std::cout << "  p->symbol  = " << p->symbol << "\n";
 
-    p->price = 193.00;                    // modify through pointer
+    p->price = 193.00;                    // pointer ke through badlo -- asli `ord` badla
     p->qty  += 50;
     std::cout << "  after edit: " << p->qty << " @ " << p->price << "\n";
 
     // ============================================================
-    //  2. Pass struct by pointer to a function
+    //  2. Function ko struct ka pointer do
     // ============================================================
     std::cout << "\n===== 2. modify via pointer parameter =====\n";
     printOrder(&ord);
@@ -60,7 +60,7 @@ int main() {
     printOrder(&ord);
 
     // ============================================================
-    //  3. nullptr -- pointer might point to nothing
+    //  3. nullptr -- pointer shayad kahin point hi na kare
     // ============================================================
     std::cout << "\n===== 3. nullptr =====\n";
     Order* maybe = nullptr;
@@ -72,7 +72,7 @@ int main() {
     // maybe->id;    // 💥 null dereference -> crash
 
     // ============================================================
-    //  4. Chained: pointer to struct that has a pointer member
+    //  4. Chain: aise struct ka pointer jiska member khud pointer hai
     // ============================================================
     std::cout << "\n===== 4. chained -> =====\n";
     struct Node { int value; Node* next; };
@@ -82,7 +82,7 @@ int main() {
 
     Node* cur = &n1;
     std::cout << "  list: ";
-    while (cur != nullptr) {              // classic linked-list walk
+    while (cur != nullptr) {              // classic linked-list walk -- nullptr = list khatam
         std::cout << cur->value << " ";
         cur = cur->next;                 // "agle node pe jao"
     }
