@@ -106,20 +106,32 @@ const std::string& x = first(makeVector());   // ⚠️ makeVector() ka temp is 
 ## `-Wreturn-local-addr` — compiler kuch pakad leta hai
 
 GCC/Clang seedhe `return local;` / `return &local;` / `return std::string("x");`
-ko warn karte hain (references ke liye bhi). Par **transitively** nahi pakadte:
+ko warn karte hain (references ke liye bhi). Par **ghumaavdaar (transitive)** cases optimization level pe
+depend karte hain:
 
 ```cpp
 int& sneaky() {
     int local = 42;
     int& r = local;
-    return r;                   // GCC 15 yeh bhi pakad leta hai (-Wreturn-local-addr)
+    return r;                   // ⚠️ reference ke through
 }
 int& sneakier(int* p) {
     int local = 42;
     p = &local;
-    return *p;                  // ⚠️ warning nahi -- p ke through chhup gaya. UB phir bhi
+    return *p;                  // ⚠️ pointer ke through
 }
 ```
+
+GCC 16.2, `-Wall -Wextra` (chala ke dekha):
+
+| Flags | `sneaky` | `sneakier` |
+|---|---|---|
+| `-O0` | **koi warning nahi** | **koi warning nahi** |
+| `-O2` | `function returns address of local variable [-Wreturn-local-addr]` | wahi warning |
+
+Yeh warning data-flow analysis se aati hai, jo optimizer ke saath chalti hai — debug (`-O0`) build pe dono
+chupchaap nikal jaate hain. Isliye CI mein ek `-O2 -Wall -Werror` build bhi rakho. Aur thoda aur ghuma do
+(pointer kisi struct/global mein, alag translation unit) to `-O2` bhi miss karega.
 
 To warning ki tarah **compiler par bharosa mat rakho**. Rule yaad rakho:
 **"referent function ke bahar zinda rahega?"** — nahi to reference return mat karo.
@@ -209,7 +221,7 @@ const char* p = obj.name().c_str();   // agar name() ek temp return kare -> p da
 | ❌ Galat | ✅ Sahi |
 |---|---|
 | "Reference return hamesha copy bachata hai, to accha" | Sirf jab referent bahar zinda ho — warna dangling |
-| "`-Wreturn-local-addr` na aaye to safe hai" | Compiler transitive cases miss karta — khud check karo |
+| "`-Wreturn-local-addr` na aaye to safe hai" | Transitive cases `-O0` pe miss hote hain (GCC 16.2), aur gehre cases `-O2` pe bhi — khud check karo |
 | "`static` local ka ref return risky hai" | Safe (lifetime = program). Thread-safety alag sawaal |
 | "RVO reference return ko optimize karta" | RVO value returns pe hai; reference return waise hi ek address |
 | "`return *this;` kabhi galat nahi" | Sahi — `*this` caller ka object hai, zinda |
@@ -267,15 +279,16 @@ const char* p = obj.name().c_str();   // agar name() ek temp return kare -> p da
    std::string& x = longest(lines);`.
    </details>
 
-5. **Transitive miss:** ek function likho jo local ka reference **through a
-   pointer** return kare taaki `-Wreturn-local-addr` na aaye. Phir `-O2` pe
-   chalao — output? (UB, batao kya dikha.)
+5. **Transitive miss:** ek function likho jo local ka reference **pointer ke
+   through** return kare. `-O0` aur `-O2` dono pe compile karke chalao — warning
+   kab aayi? Output? (UB, batao kya dikha.)
 
-   <details><summary>Answer</summary>
+   <details><summary>Answer (GCC 16.2, MinGW)</summary>
 
-   `int& via(){ int x=7; int* p=&x; return *p; }` — GCC aksar warn nahi karta.
-   `-O2` pe caller mein garbage / stale value, ya optimizer ke assumptions se
-   ajeeb output. UB — number run-to-run badal sakta hai.
+   `int& via(){ int x=7; int* p=&x; return *p; }` — `-O0`: **koi warning nahi**, `r` = `0`.
+   `-O2`: `-Wreturn-local-addr` + do `-Wdangling-pointer` warnings aayi, `r` = `32758`. 7 kabhi nahi dikha.
+   Sabak: yeh warnings optimizer ke data-flow pe tiki hain — sirf debug build se compile karoge to miss
+   ho jaayengi. UB — number run-to-run / flags ke saath badal sakta hai.
    </details>
 
 ---
